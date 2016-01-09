@@ -38,11 +38,6 @@ class UART8250 : public MMIO_Device {
         uint8_t MSR;
         uint8_t SR;
     
-        // Misc
-        bool rbravail;
-        const uint8_t ONE = 0x1;
-        const uint8_t ZERO = 0x0;
-    
         // Test if Divisor Latch Access Bit is set
         inline bool DLABSet();
     

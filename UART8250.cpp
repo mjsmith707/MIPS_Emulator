@@ -20,28 +20,28 @@ UART8250::UART8250() {
     // Base+1
     // IER Interrupt Enable Register
     // DLH Divisor Latch High Byte
-    addresses.push_back(UART_BASE+1);
+    //addresses.push_back(UART_BASE+1);
     
     // Base+2
     // IIR Interrupt Identification Register
     // FCR FIFO Control Register
-    addresses.push_back(UART_BASE+2);
+    //addresses.push_back(UART_BASE+2);
     
     // Base+3
     // LCR Line Control Register
-    addresses.push_back(UART_BASE+3);
+    //addresses.push_back(UART_BASE+3);
     
     // Base+4
     // MCR Modem Control Register
-    addresses.push_back(UART_BASE+4);
+    //addresses.push_back(UART_BASE+4);
     
     // Base+5
     // LSR Line Status Register
-    addresses.push_back(UART_BASE+5);
+    //addresses.push_back(UART_BASE+5);
     
     // Base+6
     // MSR Modem Status Register
-    addresses.push_back(UART_BASE+6);
+    //addresses.push_back(UART_BASE+6);
     
     // Base+7
     // SR  Scratch Register
@@ -174,6 +174,7 @@ void UART8250::sendChar(char ch) {
     LSR |= 0x1;
 }
 
+// Method to send a char to stdout
 bool UART8250::getChar(char* ch) {
     // 00100000
     if ((LSR & 0x40) == 0) {

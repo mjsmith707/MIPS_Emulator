@@ -19,6 +19,11 @@ void loadFile(const char*, PMMU*, CPU*);
 void waitForInput(UART8250* uart);
 
 int main(int argc, const char * argv[]) {
+    if (argc != 2) {
+        std::cout << "Usage ./MIPS_Emulator <elf_filename>" << std::endl;
+        exit(0);
+    }
+    
     // Create memory management unit
     // Roughly 4GB
     PMMU* memory = new PMMU(1000000);
@@ -33,11 +38,12 @@ int main(int argc, const char * argv[]) {
     memory->attachDevice(uart8250);
     
     // Load binary
-    loadFile("mmon.elf", memory, cpu0);
+    loadFile(argv[1], memory, cpu0);
     //loadFile("netbsd.elf", memory, cpu0);
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
+    //std::this_thread::sleep_for(std::chrono::seconds(60));
     
     // Wait for console input
     waitForInput(uart8250);

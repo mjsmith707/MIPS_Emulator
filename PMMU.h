@@ -66,94 +66,188 @@ class PMMU {
     
         // Attaches a device to its given range of addresses
         // and calls its initializer
+        // The device addresses vector is a pair of start/end addresses
         static bool attachDevice(MMIO_Device* device) {
-            for (auto addr : device->getAddresses()) {
-                auto itr = mmioDeviceTable.find(addr);
-                if (itr != mmioDeviceTable.end()) {
-                    return false;
+            if (device->getAddresses().size() % 2 > 0) {
+                throw std::runtime_error("Error: MMIO Device addresses must be a pair of ranges!");
+            }
+            
+            // Check if address range was already mapped
+            for (size_t i=0; i<device->getAddresses().size(); i+=2) {
+                for (uint32_t addr=device->getAddresses()[i]; addr<=device->getAddresses()[i+1]; addr++) {
+                    auto itr = mmioDeviceTable.find(addr);
+                    if (itr != mmioDeviceTable.end()) {
+                        return false;
+                    }
                 }
             }
             
-            for (auto addr : device->getAddresses()) {
-                mmioDeviceTable.emplace(addr, device);
-                mmioAddressTable[mmioAddressTableSize] = addr;
-                mmioAddressTableSize++;
+            // Map the address ranges
+            for (size_t i=0; i<device->getAddresses().size(); i+=2) {
+                for (uint32_t addr=device->getAddresses()[i]; addr<=device->getAddresses()[i+1]; addr++) {
+                    mmioDeviceTable.emplace(addr, device);
+                }
+                mmioAddressTable[mmioAddressTableSize] = device->getAddresses()[i];
+                mmioAddressTable[mmioAddressTableSize+1] = device->getAddresses()[i+1];
+                mmioAddressTableSize+=2;
             }
+            
+            device->initDevice();
             return true;
         }
     
         // Memory reading
-        // All reads/writes are per byte so if an address sits on a
-        // frame boundary it wont matter
         // Read a byte
         inline static uint8_t readByte(uint32_t vaddr) {
-            uint32_t paddr = translateVaddr(vaddr);
+            vaddr = translateVaddr(vaddr);
             
             // Check if MMIO device holds address
-            for (uint32_t i=0; i<mmioAddressTableSize; i++) {
-                if (mmioAddressTable[i] == paddr) {
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(paddr);
-                    return itr->second->readByte(paddr);
+                    auto itr = mmioDeviceTable.find(vaddr);
+                    return itr->second->readByte(vaddr);
                 }
             }
             
-            uint8_t* frame = getFramePointer(paddr);
-            uint8_t byte = frame[paddr&0x00000FFF];
+            // No MMIO Device found so retrieve from memory
+            uint8_t* frame = getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            
+            uint8_t byte = frame[vaddr];
             return byte;
         }
     
         // Read a halfword
         inline static uint16_t readHalf(uint32_t vaddr) {
-            uint16_t half = readByte(vaddr);
+            vaddr = translateVaddr(vaddr);
+            
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
+                    // Found device
+                    auto itr = mmioDeviceTable.find(vaddr);
+                    uint16_t half = itr->second->readByte(vaddr);
+                    half <<= 8;
+                    half |= itr->second->readByte(vaddr+1);
+                    return half;
+                }
+            }
+            
+            // No MMIO Device found so retrieve from memory
+            uint8_t* frame = getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            
+            uint16_t half = frame[vaddr];
             half <<= 8;
-            half |= readByte(vaddr+1);
+            half |= frame[vaddr+1];
             return half;
         }
     
         // Read a word
         inline static uint32_t readWord(uint32_t vaddr) {
-            uint32_t word = readByte(vaddr);
+            vaddr = translateVaddr(vaddr);
+            
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
+                    // Found device
+                    auto itr = mmioDeviceTable.find(vaddr);
+                    uint32_t word = itr->second->readByte(vaddr);
+                    word <<= 8;
+                    word |= itr->second->readByte(vaddr+1);
+                    word <<= 8;
+                    word |= itr->second->readByte(vaddr+2);
+                    word <<= 8;
+                    word |= itr->second->readByte(vaddr+3);
+                    return word;
+                }
+            }
+            
+            // No MMIO Device found so retrieve from memory
+            uint8_t* frame = getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            
+            uint32_t word = frame[vaddr];
             word <<= 8;
-            word |= readByte(vaddr+1);
+            word |= frame[vaddr+1];
             word <<= 8;
-            word |= readByte(vaddr+2);
+            word |= frame[vaddr+2];
             word <<= 8;
-            word |= readByte(vaddr+3);
+            word |= frame[vaddr+3];
             return word;
         }
         
         // Memory writing
         // Store a byte
         inline static void storeByte(uint32_t vaddr, uint8_t value) {
-            uint32_t paddr = translateVaddr(vaddr);
+            vaddr = translateVaddr(vaddr);
             
             // Check if MMIO device holds address
-            for (uint32_t i=0; i<mmioAddressTableSize; i++) {
-                if (mmioAddressTable[i] == paddr) {
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(paddr);
-                    itr->second->storeByte(paddr, value);
+                    auto itr = mmioDeviceTable.find(vaddr);
+                    itr->second->storeByte(vaddr, value);
                     return;
                 }
             }
             
-            uint8_t* frame = getFramePointer(paddr);
-            frame[paddr&0x00000FFF] = value;
+            // No MMIO Device found so save to memory
+            uint8_t* frame = getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            
+            frame[vaddr] = value;
         }
     
         // Store a halfword
         inline static void storeHalf(uint32_t vaddr, uint16_t value) {
-            storeByte(vaddr, value >> 8);
-            storeByte(vaddr+1, value);
+            vaddr = translateVaddr(vaddr);
+            
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
+                    // Found device
+                    auto itr = mmioDeviceTable.find(vaddr);
+                    itr->second->storeByte(vaddr, value >> 8);
+                    itr->second->storeByte(vaddr+1, value);
+                    return;
+                }
+            }
+            
+            // No MMIO Device found so save to memory
+            uint8_t* frame = getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            
+            frame[vaddr] = value >> 8;
+            frame[vaddr+1] = value;
         }
     
         // Store a word
         inline static void storeWord(uint32_t vaddr, uint32_t value) {
-            storeByte(vaddr, value >> 24);
-            storeByte(vaddr+1, value >> 16);
-            storeByte(vaddr+2, value >> 8);
-            storeByte(vaddr+3, value);
+            vaddr = translateVaddr(vaddr);
+            
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
+                    // Found device
+                    auto itr = mmioDeviceTable.find(vaddr);
+                    itr->second->storeByte(vaddr, value >> 24);
+                    itr->second->storeByte(vaddr+1, value >> 16);
+                    itr->second->storeByte(vaddr+2, value >> 8);
+                    itr->second->storeByte(vaddr+3, value);
+                    return;
+                }
+            }
+            
+            // No MMIO Device found so save to memory
+            uint8_t* frame = getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            
+            frame[vaddr] = value >> 24;
+            frame[vaddr+1] = value >> 16;
+            frame[vaddr+2] = value >> 8;
+            frame[vaddr+3] = value;
         }
     
 };
