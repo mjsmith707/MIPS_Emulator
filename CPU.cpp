@@ -21,7 +21,7 @@ const char* CPU::opcodeNames[64] {
 };
 
 const char* CPU::functNames[64] {
-/* 0x00 */ "sll", "invalid", "srl", "sra", "sllv", "srlv", "srav", "jr", "jalr",
+/* 0x00 */ "sll", "invalid", "srl", "sra", "sllv", "srlv", "srav", "jr", "jalr", "invalid",
 /* 0x0A */ "movz", "movn", "syscall", "break", "invalid", "sync",
 /* 0x10 */ "mfhi", "mthi", "mflo", "mtlo", "invalid", "invalid", "invalid", "invalid", "mult", "multu",
 /* 0x1A */ "div", "divu", "invalid", "invalid", "invalid", "invalid",
@@ -192,10 +192,6 @@ __attribute__((always_inline)) void CPU::decodeAll() {
     DECODE_IMM();
     DECODE_JIMM();
     DECODE_SEL();
-    
-    #ifdef DEBUGCPU
-    debugPrint();
-    #endif
 }
 
 // CPU Dispatch loop
@@ -220,8 +216,8 @@ void CPU::dispatchLoop() {
         &&XORI,     // 0x0E
         &&LUI,      // 0x0F
         &&COP0,     // 0x10
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x11
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x12
+        &&COP1,     // 0x11
+        &&COP2,     // 0x12
         &&INVALID_INSTRUCTION,          // 0x13
         &&BEQL,     // 0x14
         &&BNEL,     // 0x15
@@ -254,13 +250,13 @@ void CPU::dispatchLoop() {
         &&LL,       // 0x30
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x31
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x32
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x33
+        &&PREF,     // 0x33
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x34
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x35
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x36
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x37
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x38
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x39
+        &&SC,       // 0x38
+        &&SWCL,     // 0x39
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3A
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3B
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3C
@@ -541,6 +537,7 @@ void CPU::dispatchLoop() {
     };
 
     // Dispatch macro
+    //#define DISPATCH() fetch() debugPrint(); DECODE_OPCODE(); goto *opcodeTable[opcode]
     #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
     
     // Begin Dispatch Loop
@@ -646,21 +643,6 @@ void CPU::dispatchLoop() {
         registers[rt] = registers[rs] + (int16_t)imm;
         DISPATCH();
     
-    // 0x10 COP0 Instructions
-    COP0:
-        DECODE_RS();
-        goto *cop0Table[rs];
-    
-    // 0x1C SPECIAL2 Instructions
-    SPECIAL2:
-        DECODE_FUNCT();
-        goto *special2Table[funct];
-    
-    // 0x1F SPECIAL3 Instructions
-    SPECIAL3:
-        DECODE_FUNCT();
-        goto *special3Table[funct];
-    
     // 0x0A Set on Less Than Immediate
     SLTI:
         DECODE_RS();
@@ -668,7 +650,7 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         registers[rt] = (int16_t)registers[rs] < (int16_t)imm;
         DISPATCH();
-    
+        
     // 0x0B Shift Left Immediate Unsigned
     SLTIU:
         DECODE_RS();
@@ -676,7 +658,7 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         registers[rt] = registers[rs] < imm;
         DISPATCH();
-    
+        
     // 0x0C And Immediate
     ANDI:
         DECODE_RS();
@@ -684,7 +666,7 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         registers[rt] = registers[rs] & imm;
         DISPATCH();
-    
+        
     // 0x0D OR Immediate
     ORI:
         DECODE_RS();
@@ -692,7 +674,7 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         registers[rt] = registers[rs] | imm;
         DISPATCH();
-    
+        
     // 0x0E XOR Immediate
     XORI:
         DECODE_RS();
@@ -700,14 +682,18 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         registers[rt] = registers[rs] ^ imm;
         DISPATCH();
-    
+        
     // 0x0F Load Upper Immediate
     LUI:
         DECODE_RT();
         DECODE_IMM();
         registers[rt] = imm << 16;
         DISPATCH();
-    // 0x10
+        
+    // 0x10 COP0 Instructions
+    COP0:
+        DECODE_RS();
+        goto *cop0Table[rs];
     
     // 0x11 COP1
     COP1:
@@ -769,6 +755,24 @@ void CPU::dispatchLoop() {
     // 0x18
     
     // 0x19
+    
+    // 0x1A
+    
+    // 0x1B
+
+    // 0x1C SPECIAL2 Instructions
+    SPECIAL2:
+        DECODE_FUNCT();
+        goto *special2Table[funct];
+    
+    // 0x1D
+    
+    // 0x1E
+    
+    // 0x1F SPECIAL3 Instructions
+    SPECIAL3:
+        DECODE_FUNCT();
+        goto *special3Table[funct];
     
     // 0x20 Load Byte
     LB:
@@ -913,6 +917,18 @@ void CPU::dispatchLoop() {
     SWCL:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
+    // 0x3A
+    
+    // 0x3B
+    
+    // 0x3C
+    
+    // 0x3D
+    
+    // 0x3E
+    
+    // 0x3F
     
 /*
  * === END Opcodes ===
@@ -1346,12 +1362,20 @@ void CPU::dispatchLoop() {
  */
     // 0x00 Move From Coprocessor0
     MFC0:
-        //goto UNIMPLEMENTED_INSTRUCTION;
+        DECODE_SEL();
+        DECODE_RT();
+        DECODE_RD();
+        registers[rt] = cop0_processor.getRegister(rd, sel);
         DISPATCH();
+    
     // 0x04 Move To Coprocessor0
     MTC0:
-        //goto UNIMPLEMENTED_INSTRUCTION;
+        DECODE_SEL();
+        DECODE_RT();
+        DECODE_RD();
+        cop0_processor.setRegister(rd, sel, registers[rt]);
         DISPATCH();
+    
     // 0x0B Disable Interrupts
     DI:
         goto UNIMPLEMENTED_INSTRUCTION;

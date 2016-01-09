@@ -74,7 +74,7 @@ class dynamic_section_accessor
              tag == DT_RUNPATH ) {
             string_section_accessor strsec =
                 elf_file.sections[ get_string_table_index() ];
-            str = strsec.get_string( value );
+            str = strsec.get_string( (Elf_Word)value );
         }
         else {
             str.clear();
@@ -212,7 +212,7 @@ class dynamic_section_accessor
         case DT_RUNPATH:
         case DT_FLAGS:
         case DT_PREINIT_ARRAYSZ:
-            entry.d_un.d_val = convertor( value );
+            entry.d_un.d_val = convertor( (Elf_Word)value );
             break;
         case DT_PLTGOT:
         case DT_HASH:
@@ -228,11 +228,11 @@ class dynamic_section_accessor
         case DT_FINI_ARRAY:
         case DT_PREINIT_ARRAY:
         default:
-            entry.d_un.d_ptr = convertor( value );
+            entry.d_un.d_ptr = convertor( (Elf_Word)value );
             break;
         }
 
-        entry.d_tag = convertor( tag );
+        entry.d_tag = convertor( (Elf_Sword)tag );
 
         dynamic_section->append_data( reinterpret_cast<char*>( &entry ), sizeof( entry ) );
     }

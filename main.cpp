@@ -9,23 +9,105 @@
 #include <iostream>
 #include <iomanip>
 #include <thread>
+#include <curses.h>
 #include "PMMU.h"
 #include "CPU.h"
+#include "UART8250.h"
 #include "elfio/elfio.hpp"
 
 void loadFile(const char*, PMMU*, CPU*);
+void waitForInput(UART8250* uart);
 
 int main(int argc, const char * argv[]) {
+    // Create memory management unit
     // Roughly 4GB
     PMMU* memory = new PMMU(1000000);
     
+    // Create cpu
     CPU* cpu0 = new CPU(memory);
+    
+    // Create uart8250
+    UART8250* uart8250 = new UART8250();
+    
+    // Attach uart to iommu
+    memory->attachDevice(uart8250);
+    
+    // Load binary
     loadFile("mmon.elf", memory, cpu0);
+    //loadFile("netbsd.elf", memory, cpu0);
+    
+    // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
-    std::this_thread::sleep_for(std::chrono::seconds(60));
+    
+    // Wait for console input
+    waitForInput(uart8250);
+    
+    
+    // Stop CPU
     cpu0->sendSignal(1);
     cpu0_thread.join();
     return 0;
+}
+
+// Handles keyboard input/output to the vm
+// Ncurses is like black magic
+// http://cc.byexamples.com/2007/04/08/non-blocking-user-input-in-loop-without-ncurses/
+void waitForInput(UART8250* uart) {
+    // Initialize ncurses
+    char ch = 0;
+    initscr();
+    timeout(0);
+    noecho();
+    scrollok(stdscr, TRUE);
+    idlok(stdscr, TRUE);
+    
+    // Blocking input/output loop
+    while (ch != '~') {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        
+        // Check if character is available from uart
+        if (uart->getChar(&ch)) {
+            // Ncurses hates newlines...
+            if (ch == '\n') {
+                // Check if we're at the bottom of the window
+                // If so then scroll otherwise move the cursor
+                // Just printing \n causes it to overwrite the line...
+                int x, y;
+                int xmax, ymax;
+                getyx(stdscr, y, x);
+                getmaxyx(stdscr, ymax, xmax);
+                if (y+1 == ymax) {
+                    scroll(stdscr);
+                }
+                else {
+                    wmove(stdscr, y+1, x);
+                }
+            }
+            else {
+                printw("%c", ch);
+                refresh();
+            }
+        }
+        
+        // Check if character is available from stdin
+        ch = getch();
+        if (ch > 0) {
+            // For whatever reason enter comes in as LF
+            // Send CR instead
+            if (ch == '\n') {
+                uart->sendChar(0xD);
+            }
+            else {
+                uart->sendChar(ch);
+            }
+        }
+        else {
+            ch = 0;
+        }
+    }
+    
+    // Cleanup ncurses
+    endwin();
 }
 
 void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
@@ -82,37 +164,13 @@ void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
         << std::endl;
         
         // Access to segments's data
-        const char* p = reader.segments[i]->get_data();
+        const char* p = pseg->get_data();
         if (p != NULL) {
             // Load segment into memory
             uint32_t addr = (uint32_t)pseg->get_virtual_address();
-            for (unsigned int i=0; i < pseg->get_memory_size(); i++, addr++) {
-                memory->storeByte(addr, p[i]);
+            for (uint32_t j=0; j < pseg->get_file_size(); j++, addr++) {
+                memory->storeByte(addr, p[j]);
             }
         }
     }
-    /*
-    for ( int i = 0; i < sec_num; ++i ) {
-        ELFIO::section* psec = reader.sections[i];
-        // Check section type
-        if ( psec->get_type() == SHT_SYMTAB ) {
-            const ELFIO::symbol_section_accessor symbols( reader, psec );
-            for ( unsigned int j = 0; j < symbols.get_symbols_num(); ++j ) {
-                std::string   name;
-                ELFIO::Elf64_Addr    value;
-                ELFIO::Elf_Xword     size;
-                unsigned char bind;
-                unsigned char type;
-                ELFIO::Elf_Half      section_index;
-                unsigned char other;
-                
-                // Read symbol properties
-                symbols.get_symbol( j, name, value, size, bind,
-                                   type, section_index, other );
-                std::cout << j << " " << name << " " << value << std::endl;
-            }
-        }
-    }
-     */
-    
 }

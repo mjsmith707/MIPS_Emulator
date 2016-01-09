@@ -1,5 +1,5 @@
 //
-//  MMU.cpp
+//  PMMU.cpp
 //  MIPS_Emulator
 //
 //  Created by Matt on 1/6/16.
@@ -16,6 +16,7 @@ PMMU::PMMU(size_t ramSize) {
         frameTable[i] = NULL;
     }
     frameTableSize = 0;
+    mmioAddressTableSize = 0;
 }
 
 // Destructor
@@ -32,3 +33,6 @@ PMMU::~PMMU() {
 size_t PMMU::frameTableSize;
 size_t PMMU::frameTableRamLimit;
 uint8_t* PMMU::frameTable[frameTableMax];
+uint32_t PMMU::mmioAddressTable[MMIOADDRESSTABLEMAX];
+uint32_t PMMU::mmioAddressTableSize;
+std::unordered_map<uint32_t, MMIO_Device*> PMMU::mmioDeviceTable;

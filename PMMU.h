@@ -1,5 +1,5 @@
 //
-//  MMU.h
+//  PMMU.h
 //  MIPS_Emulator
 //
 //  Created by Matt on 1/6/16.
@@ -11,6 +11,8 @@
 
 #include <cstdint>          // uint32_t
 #include <iostream>         // std::cerr
+#include <unordered_map>    // hash table (and soooo slowwwwww)
+#include "MMIO_Device.h"    // MMIO Device interface
 
 // Paged Memory Management Unit
 // Singleton class because there really is only ever one of these
@@ -22,6 +24,12 @@ class PMMU {
         static const size_t frameTableMax = 0x100000;
         static size_t frameTableRamLimit;
         static uint8_t* frameTable[frameTableMax];
+        // Quick linear table to check for mapped addresses
+        // Only 32 addresses right now until I can find a faster solution...
+        #define MMIOADDRESSTABLEMAX 32
+        static uint32_t mmioAddressTable[MMIOADDRESSTABLEMAX];
+        static uint32_t mmioAddressTableSize;
+        static std::unordered_map<uint32_t, MMIO_Device*> mmioDeviceTable;
     
         // Virtual to Physical Address translation
         inline static uint32_t translateVaddr(uint32_t vaddr) {
@@ -56,12 +64,40 @@ class PMMU {
         PMMU(size_t ramSize);
         ~PMMU();
     
+        // Attaches a device to its given range of addresses
+        // and calls its initializer
+        static bool attachDevice(MMIO_Device* device) {
+            for (auto addr : device->getAddresses()) {
+                auto itr = mmioDeviceTable.find(addr);
+                if (itr != mmioDeviceTable.end()) {
+                    return false;
+                }
+            }
+            
+            for (auto addr : device->getAddresses()) {
+                mmioDeviceTable.emplace(addr, device);
+                mmioAddressTable[mmioAddressTableSize] = addr;
+                mmioAddressTableSize++;
+            }
+            return true;
+        }
+    
         // Memory reading
         // All reads/writes are per byte so if an address sits on a
         // frame boundary it wont matter
         // Read a byte
         inline static uint8_t readByte(uint32_t vaddr) {
             uint32_t paddr = translateVaddr(vaddr);
+            
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i<mmioAddressTableSize; i++) {
+                if (mmioAddressTable[i] == paddr) {
+                    // Found device
+                    auto itr = mmioDeviceTable.find(paddr);
+                    return itr->second->readByte(paddr);
+                }
+            }
+            
             uint8_t* frame = getFramePointer(paddr);
             uint8_t byte = frame[paddr&0x00000FFF];
             return byte;
@@ -91,6 +127,17 @@ class PMMU {
         // Store a byte
         inline static void storeByte(uint32_t vaddr, uint8_t value) {
             uint32_t paddr = translateVaddr(vaddr);
+            
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i<mmioAddressTableSize; i++) {
+                if (mmioAddressTable[i] == paddr) {
+                    // Found device
+                    auto itr = mmioDeviceTable.find(paddr);
+                    itr->second->storeByte(paddr, value);
+                    return;
+                }
+            }
+            
             uint8_t* frame = getFramePointer(paddr);
             frame[paddr&0x00000FFF] = value;
         }

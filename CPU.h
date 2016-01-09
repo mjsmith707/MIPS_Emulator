@@ -11,9 +11,9 @@
 
 #undef DEBUGCPU
 
-#include <cstdint>      // uint32_t
-#include "PMMU.h"       // Memory
-
+#include <cstdint>          // uint32_t
+#include "PMMU.h"           // Memory
+#include "Coprocessor0.h"   // Coprocessor0
 // MIPS CPU
 class CPU {
     private:
@@ -49,6 +49,9 @@ class CPU {
     
         // Pointer to the memory manager singleton
         PMMU* memory;
+    
+        // Control Coprocessor0
+        Coprocessor0 cop0_processor;
     
         // GPR Register Set
         uint32_t registers[32];
@@ -105,12 +108,19 @@ class CPU {
         void decodeAll();
         void dispatchLoop();
     
+        // Prints out cpu and instruction information
         void debugPrint();
     
     public:
         CPU(PMMU* memory);
+    
+        // Sets the program counter to an address
         void setPC(uint32_t addr);
+    
+        // Begins CPU Execution
         void start();
+    
+        // Sends a signal to the CPU
         void sendSignal(uint32_t);
 };
 
