@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <thread>
 #include "PMMU.h"
 #include "CPU.h"
 #include "elfio/elfio.hpp"
@@ -15,10 +16,15 @@
 void loadFile(const char*, PMMU*, CPU*);
 
 int main(int argc, const char * argv[]) {
+    // Roughly 4GB
     PMMU* memory = new PMMU(1000000);
+    
     CPU* cpu0 = new CPU(memory);
     loadFile("mmon.elf", memory, cpu0);
-    cpu0->start();
+    std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
+    std::this_thread::sleep_for(std::chrono::seconds(60));
+    cpu0->sendSignal(1);
+    cpu0_thread.join();
     return 0;
 }
 
@@ -74,25 +80,14 @@ void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
         << "\t0x"
         << pseg->get_memory_size()
         << std::endl;
+        
         // Access to segments's data
         const char* p = reader.segments[i]->get_data();
         if (p != NULL) {
+            // Load segment into memory
             uint32_t addr = (uint32_t)pseg->get_virtual_address();
-            unsigned int count = 0;
             for (unsigned int i=0; i < pseg->get_memory_size(); i++, addr++) {
-                if (count == 0) {
-                    std::cout << std::hex << "0x" << addr << "\t0x" << (unsigned int)(p[i]&0x000000FF);
-                }
-                else {
-                    std::cout << std::hex << " 0x" << (unsigned int)(p[i]&0x000000FF);
-                }
-                
                 memory->storeByte(addr, p[i]);
-                count++;
-                if (count == 4) {
-                    count = 0;
-                    std::cout << std::endl;
-                }
             }
         }
     }

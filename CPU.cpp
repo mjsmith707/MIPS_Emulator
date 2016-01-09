@@ -74,7 +74,7 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(PMMU* memory) : memory(memory) {
+CPU::CPU(PMMU* memory) : memory(memory), cycleCounter(0), signal(0) {
 }
 
 // Sets the initial program counter for the CPU
@@ -87,11 +87,18 @@ void CPU::start() {
     dispatchLoop();
 }
 
+// Public function to signal to the thread bound to the cpu
+// This is very very temporary until proper interrupts are in
+void CPU::sendSignal(uint32_t sig) {
+    signal = sig;
+}
+
 // Prints information about the cpu's execution per cycle
 // Also does on the fly disassembly
-#ifdef DEBUGCPU
 void CPU::debugPrint() {
+    decodeAll();
     std::cout << "=== Decode ===" << std::endl
+    << "Cycle = " << std::dec << cycleCounter << std::endl
     << std::hex << "PC = 0x" << PC-4 << std::endl
     << "IR = 0x" << IR << std::endl
     << "opcode = 0x" << (uint16_t)opcode << std::endl << std::dec
@@ -102,6 +109,7 @@ void CPU::debugPrint() {
     << "funct = " << (uint16_t)funct << std::endl
     << "imm = " << (int16_t)imm << std::endl
     << "jimm = 0x" << std::hex << (int)jimm << std::endl
+    << "sel = " << std::dec << (int)sel << std::endl
     << "=== END Decode ===" << std::endl;
     std::cout << std::dec << "=== Disassembly ===" << std::endl;
     if (branchDelay) {
@@ -142,42 +150,48 @@ void CPU::debugPrint() {
     std::cout << "=== END Disassembly ===" << std::endl << std::endl;
 
 }
-#endif
 
 // Fetches the next instruction into the program counter and instruction register
-__attribute__((always_inline)) void CPU::fetch() {
-    // Reset r0
-    registers[0] = 0;
-    
-    // Check if we need to branch
-    if (branch) {
-        branch = false;
-        branchDelay = false;
-        PC = branchAddr;
-        IR = memory->readWord(PC);
-        PC += 4;
-    }
-    else {
-        IR = memory->readWord(PC);
-        PC += 4;
-    }
-    
-    // Check if we're in a delay slot so we branch next time
-    if (branchDelay) {
-        branch = true;
-    }
-}
+// Signal should be marked volatile but w/e its a temporary deal anyway and clang doesnt
+// appear to save it in register
+#define fetch()  \
+    cycleCounter++; \
+\
+    registers[0] = 0; \
+\
+    if (signal != 0) { \
+        goto CPU_HALT; \
+    } \
+\
+    if (branch) { \
+        branch = false; \
+        branchDelay = false; \
+        PC = branchAddr; \
+        IR = memory->readWord(PC); \
+        PC += 4; \
+    } \
+    else { \
+        IR = memory->readWord(PC); \
+        PC += 4; \
+    } \
+\
+    if (branchDelay) { \
+        branch = true; \
+    } \
 
-// Decodes the word in IR into its component parts
-__attribute__((always_inline)) void CPU::decode() {
-    opcode = (IR & OPCODEMASK) >> OPCODESHIFT;
-    rs = (IR & RSMASK) >> RSSHIFT;
-    rt = (IR & RTMASK) >> RTSHIFT;
-    rd = (IR & RDMASK) >> RDSHIFT;
-    shamt = (IR & SHAMTMASK) >> SHAMTSHIFT;
-    funct = (IR & FUNCTMASK) >> FUNCTSHIFT;
-    imm = (IR & IMMMASK) >> IMMSHIFT;
-    jimm = (IR & JIMMMASK) >> JIMMSHIFT;
+
+// Decodes all information from the instruction
+// Mainly for debugging
+__attribute__((always_inline)) void CPU::decodeAll() {
+    DECODE_OPCODE();
+    DECODE_RS();
+    DECODE_RT();
+    DECODE_RD();
+    DECODE_SHAMT();
+    DECODE_FUNCT();
+    DECODE_IMM();
+    DECODE_JIMM();
+    DECODE_SEL();
     
     #ifdef DEBUGCPU
     debugPrint();
@@ -525,14 +539,9 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x1E
         &&INVALID_INSTRUCTION,          // 0x1F
     };
-    
-    // Clang invalid error workaround
-    //silence: void* silenceptr = &&silence;
-    
-    
-    
+
     // Dispatch macro
-    #define DISPATCH() fetch(); decode(); goto *opcodeTable[opcode]
+    #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
     
     // Begin Dispatch Loop
     DISPATCH();
@@ -542,14 +551,17 @@ void CPU::dispatchLoop() {
  */
     // 0x00 Funct/SPECIAL Instructions
     FUNCT:
+        DECODE_FUNCT();
         goto *functTable[funct];
     
     // 0x01 REGIMM Instructions
     REGIMM:
+        DECODE_RT();
         goto *regimmTable[rt];
     
     // 0x02 Jump
     J:
+        DECODE_JIMM();
         branchDelay = true;
         jimm <<= 2;
         branchAddr = PC & 0xF0000000;
@@ -558,6 +570,7 @@ void CPU::dispatchLoop() {
     
     // 0x03 Jump And Link
     JAL:
+        DECODE_JIMM();
         registers[31] = PC+4;
         branchDelay = true;
         jimm <<= 2;
@@ -567,6 +580,9 @@ void CPU::dispatchLoop() {
     
     // 0x04 Branch If Equal
     BEQ:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         if (registers[rs] == registers[rt]) {
             branchDelay = true;
             branchAddr = PC;
@@ -576,6 +592,9 @@ void CPU::dispatchLoop() {
     
     // 0x05 Branch on Not Equal
     BNE:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         if (registers[rs] != registers[rt]) {
             branchDelay = true;
             branchAddr = PC;
@@ -585,6 +604,8 @@ void CPU::dispatchLoop() {
     
     // 0x06 Branch on Less Than or Equal to Zero
     BLEZ:
+        DECODE_RS();
+        DECODE_IMM();
         if (registers[rs] <= 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -594,6 +615,8 @@ void CPU::dispatchLoop() {
     
     // 0x07 Branch on Greater Than Zero
     BGTZ:
+        DECODE_RS();
+        DECODE_IMM();
         if (registers[rs] > 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -603,6 +626,9 @@ void CPU::dispatchLoop() {
     
     // 0x08 Add Immediate
     ADDI:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = 0;
         if (__builtin_sadd_overflow(registers[rs], (int16_t)imm, &tempi32)) {
             // FIXME: Overflow trigger exception
@@ -614,48 +640,71 @@ void CPU::dispatchLoop() {
     
     // 0x09 Add Unsigned Immediate
     ADDIU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = registers[rs] + (int16_t)imm;
         DISPATCH();
     
     // 0x10 COP0 Instructions
     COP0:
+        DECODE_RS();
         goto *cop0Table[rs];
     
     // 0x1C SPECIAL2 Instructions
     SPECIAL2:
+        DECODE_FUNCT();
         goto *special2Table[funct];
     
     // 0x1F SPECIAL3 Instructions
     SPECIAL3:
+        DECODE_FUNCT();
         goto *special3Table[funct];
     
     // 0x0A Set on Less Than Immediate
     SLTI:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = (int16_t)registers[rs] < (int16_t)imm;
         DISPATCH();
     
     // 0x0B Shift Left Immediate Unsigned
     SLTIU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = registers[rs] < imm;
         DISPATCH();
     
     // 0x0C And Immediate
     ANDI:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = registers[rs] & imm;
         DISPATCH();
     
     // 0x0D OR Immediate
     ORI:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = registers[rs] | imm;
         DISPATCH();
     
     // 0x0E XOR Immediate
     XORI:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = registers[rs] ^ imm;
         DISPATCH();
     
     // 0x0F Load Upper Immediate
     LUI:
+        DECODE_RT();
+        DECODE_IMM();
         registers[rt] = imm << 16;
         DISPATCH();
     // 0x10
@@ -673,6 +722,9 @@ void CPU::dispatchLoop() {
     
     // 0x14 Branch on Equal Likely
     BEQL:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         if (registers[rs] == registers[rt]) {
             branchDelay = true;
             branchAddr = PC;
@@ -682,6 +734,9 @@ void CPU::dispatchLoop() {
     
     // 0x15 Branch on Not Equal Likely
     BNEL:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         if (registers[rs] != registers[rt]) {
             branchDelay = true;
             branchAddr = PC;
@@ -691,6 +746,8 @@ void CPU::dispatchLoop() {
     
     // 0x16 Branch on Less Than or Equal to Zero Likely
     BLEZL:
+        DECODE_RS();
+        DECODE_IMM();
         if (registers[rs] <= 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -700,6 +757,8 @@ void CPU::dispatchLoop() {
     
     // 0x17 Branch on Greater Than Zero Likely
     BGTZL:
+        DECODE_RS();
+        DECODE_IMM();
         if (registers[rs] > 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -713,6 +772,9 @@ void CPU::dispatchLoop() {
     
     // 0x20 Load Byte
     LB:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         tempi32 = memory->readByte(tempi32);
@@ -721,6 +783,9 @@ void CPU::dispatchLoop() {
     
     // 0x21 Load Half
     LH:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         tempi32 = memory->readHalf(tempi32);
@@ -733,6 +798,9 @@ void CPU::dispatchLoop() {
         //DISPATCH();
     // 0x23 Load Word
     LW:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         tempi32 = memory->readWord(tempi32);
@@ -741,6 +809,9 @@ void CPU::dispatchLoop() {
     
     // 0x24 Load Byte Unsigned
     LBU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         registers[rt] = memory->readByte(tempi32);
@@ -748,6 +819,9 @@ void CPU::dispatchLoop() {
     
     // 0x25 Load Halfword Unsigned
     LHU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         registers[rt] = memory->readHalf(tempi32);
@@ -762,6 +836,9 @@ void CPU::dispatchLoop() {
     
     // 0x28 Store Byte
     SB:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         memory->storeByte(tempi32, registers[rt]);
@@ -769,6 +846,9 @@ void CPU::dispatchLoop() {
     
     // 0x29 Store Halfword
     SH:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         memory->storeHalf(tempi32, registers[rt]);
@@ -781,6 +861,9 @@ void CPU::dispatchLoop() {
     
     // 0x2B Store Word
     SW:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
         memory->storeWord(tempi32, registers[rt]);
@@ -841,52 +924,79 @@ void CPU::dispatchLoop() {
     
     // 0x00 Shift Left Logical
     SLL:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_SHAMT();
         registers[rd] = registers[rt] << shamt;
         DISPATCH();
     // 0x01
     
     // 0x02 Shift Right Logical
     SRL:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_SHAMT();
         registers[rd] = registers[rt] >> shamt;
         DISPATCH();
     // 0x03 Shift Right Arithmetic
     SRA:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_SHAMT();
         registers[rd] = (int32_t)registers[rt] >> shamt;
         DISPATCH();
     // 0x04 Shift Word Left Logical Variable
     SLLV:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_RS();
         registers[rd] = registers[rt] << registers[rs];
         DISPATCH();
     // 0x05
     
     // 0x06 Shift Word Left Arithmetic Variable
     SRLV:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_RS();
         registers[rd] = (int32_t)registers[rt] << registers[rs];
         DISPATCH();
     // 0x07 Shift Word Right Arithmetic Variable
     SRAV:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_RS();
         registers[rd] = (int32_t)registers[rt] >> registers[rs];
         DISPATCH();
     // 0x08 Jump Register
     JR:
+        DECODE_RS();
         // FIXME: checks Config1.CA
         branchDelay = true;
         branchAddr = registers[rs];
         DISPATCH();
     // 0x09 Jump And Link Register
     JALR:
+        DECODE_RD();
+        DECODE_RS();
         branchDelay = true;
         registers[rd] = PC+4;
         branchAddr = registers[rs];
         DISPATCH();
     // 0x0A Move Conditional On Zero
     MOVZ:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_RS();
         if (registers[rt] == 0) {
             registers[rd] = registers[rs];
         }
         DISPATCH();
     // 0x0B Move Conditional On Not Zero
     MOVN:
+        DECODE_RD();
+        DECODE_RT();
+        DECODE_RS();
         if (registers[rt] != 0) {
             registers[rd] = registers[rs];
         }
@@ -907,18 +1017,22 @@ void CPU::dispatchLoop() {
         //DISPATCH();
     // 0x10 Move From HI Register
     MFHI:
+        DECODE_RD();
         registers[rd] = HI;
         DISPATCH();
     // 0x11 Move To HI Register
     MTHI:
+        DECODE_RS();
         HI = registers[rs];
         DISPATCH();
     // 0x12 Move From LO Register
     MFLO:
+        DECODE_RD();
         registers[rd] = LO;
         DISPATCH();
     // 0x13 Move To LO Register
     MTLO:
+        DECODE_RS();
         LO = registers[rs];
         DISPATCH();
     // 0x14
@@ -931,18 +1045,24 @@ void CPU::dispatchLoop() {
     
     // 0x18 Multiply Word
     MULT:
+        DECODE_RS();
+        DECODE_RT();
         tempu64 = (int32_t)registers[rs] * (int32_t)registers[rt];
         HI = tempu64 >> 32;
         LO = tempu64 & 0x00000000FFFFFFFF;
         DISPATCH();
     // 0x19 Multiply Unsigned Word
     MULTU:
+        DECODE_RS();
+        DECODE_RT();
         tempu64 = registers[rs] * registers[rt];
         HI = tempu64 >> 32;
         LO = tempu64 & 0x00000000FFFFFFFF;
         DISPATCH();
     // 0x1A Divide Word
     DIV:
+        DECODE_RS();
+        DECODE_RT();
         if (registers[rt] != 0) {
             HI = (int32_t)registers[rs] % (int32_t)registers[rt];
             LO = (int32_t)registers[rs] / (int32_t)registers[rt];
@@ -950,6 +1070,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x1B Divide Unsigned Word
     DIVU:
+        DECODE_RS();
+        DECODE_RT();
         if (registers[rt] != 0) {
             HI = registers[rs] % registers[rt];
             LO = registers[rs] / registers[rt];
@@ -965,6 +1087,9 @@ void CPU::dispatchLoop() {
     
     // 0x20 Add Word
     ADD:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         tempi32 = 0;
         if (__builtin_sadd_overflow(registers[rs], registers[rt], &tempi32)) {
             // FIXME: Overflow trigger exception
@@ -975,10 +1100,16 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x21 Add Unsigned Word
     ADDU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = registers[rs] + registers[rt];
         DISPATCH();
     // 0x22 Subtract Word
     SUB:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         tempi32 = 0;
         if (__builtin_ssub_overflow(registers[rs], registers[rt], &tempi32)) {
         // FIXME: Overflow trigger exception
@@ -989,22 +1120,37 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x23 Subtract Word Unsigned
     SUBU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = registers[rs] - registers[rt];
         DISPATCH();
     // 0x24 Bitwise AND
     AND:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = registers[rs] & registers[rt];
         DISPATCH();
     // 0x25 Bitwise OR
     OR:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = registers[rs] | registers[rt];
         DISPATCH();
     // 0x26 Bitwise XOR
     XOR:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = registers[rs] ^ registers[rt];
         DISPATCH();
     // 0x27 Bitwise NOR
     NOR:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = ~(registers[rs] | registers[rt]);
         DISPATCH();
     // 0x28
@@ -1013,10 +1159,16 @@ void CPU::dispatchLoop() {
     
     // 0x2A Set on Less Than
     SLT:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = (int32_t)registers[rs] < (int32_t)registers[rt];
         DISPATCH();
     // 0x2B Set on Less Than Unsigned
     SLTU:
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
         registers[rd] = registers[rs] < registers[rt];
         DISPATCH();
     // 0x2C
@@ -1060,15 +1212,18 @@ void CPU::dispatchLoop() {
  */
     // 0x02 Multiply Word to GPR
     MUL:
-        DISPATCH();
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
     // 0x20 Count Leading Zeroes in Word
     CLZ:
-        DISPATCH();
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
     // 0x21 Count Loading Ones in Word
     CLO:
-        DISPATCH();
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
 /*
  * === END SPECIAL2 ===
@@ -1100,6 +1255,8 @@ void CPU::dispatchLoop() {
  */
     // 0x00 Branch on Less Than Zero
     BLTZ:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] < 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -1108,6 +1265,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x01 Branch on Greater Than or Equal to Zero
     BGEZ:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] >= 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -1116,6 +1275,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x02 Branch on Less Than Zero Likely
     BLTZL:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] < 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -1124,6 +1285,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x03 Branch on Greater Than or Equal to Zero Likely
     BGEZL:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] >= 0) {
             branchDelay = true;
             branchAddr = PC;
@@ -1132,6 +1295,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x10 Branch on Less Than Zero and Link
     BLTZAL:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] < 0) {
             registers[31] = PC+4;
             branchDelay = true;
@@ -1141,6 +1306,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x11 Branch on Greater Than or Equal to Zero and Link
     BGEZAL:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] >= 0) {
             registers[31] = PC+4;
             branchDelay = true;
@@ -1150,6 +1317,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x12 Branch on Less Than Zero and Link Likely
     BLTZALL:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] < 0) {
             registers[31] = PC+4;
             branchDelay = true;
@@ -1159,6 +1328,8 @@ void CPU::dispatchLoop() {
         DISPATCH();
     // 0x13 Branch on Greater Than Zero and Link Likely
     BGEZALL:
+        DECODE_RS();
+        DECODE_IMM();
         if ((int32_t)registers[rs] >= 0) {
             registers[31] = PC+4;
             branchDelay = true;
@@ -1175,12 +1346,12 @@ void CPU::dispatchLoop() {
  */
     // 0x00 Move From Coprocessor0
     MFC0:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        //goto UNIMPLEMENTED_INSTRUCTION;
+        DISPATCH();
     // 0x04 Move To Coprocessor0
     MTC0:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        //goto UNIMPLEMENTED_INSTRUCTION;
+        DISPATCH();
     // 0x0B Disable Interrupts
     DI:
         goto UNIMPLEMENTED_INSTRUCTION;
@@ -1196,9 +1367,16 @@ void CPU::dispatchLoop() {
         
     INVALID_INSTRUCTION:
         std::cerr << "ERROR: Invalid instruction!" << std::endl;
+        debugPrint();
         return;
     UNIMPLEMENTED_INSTRUCTION:
         std::cerr << "ERROR: Unimplemented instruction!" << std::endl;
+        debugPrint();
+        return;
+    
+    CPU_HALT:
+        std::cout << "CPU Halted." << std::endl;
+        debugPrint();
         return;
 }
 

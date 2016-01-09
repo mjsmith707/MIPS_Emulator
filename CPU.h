@@ -9,7 +9,7 @@
 #ifndef CPU_h
 #define CPU_h
 
-#define DEBUGCPU 1
+#undef DEBUGCPU
 
 #include <cstdint>      // uint32_t
 #include "PMMU.h"       // Memory
@@ -34,6 +34,18 @@ class CPU {
         #define IMMSHIFT    0
         #define JIMMMASK    0x03FFFFFF
         #define JIMMSHIFT   0
+        #define SELMASK     0x7
+    
+        // Decoder Macros
+        #define DECODE_OPCODE() opcode = (IR & OPCODEMASK) >> OPCODESHIFT
+        #define DECODE_RS() rs = (IR & RSMASK) >> RSSHIFT
+        #define DECODE_RT() rt = (IR & RTMASK) >> RTSHIFT
+        #define DECODE_RD() rd = (IR & RDMASK) >> RDSHIFT
+        #define DECODE_SHAMT() shamt = (IR & SHAMTMASK) >> SHAMTSHIFT
+        #define DECODE_FUNCT() funct = (IR & FUNCTMASK) >> FUNCTSHIFT
+        #define DECODE_IMM() imm = (IR & IMMMASK) >> IMMSHIFT
+        #define DECODE_JIMM() jimm = (IR & JIMMMASK) >> JIMMSHIFT
+        #define DECODE_SEL() DECODE_IMM(); sel = imm & SELMASK
     
         // Pointer to the memory manager singleton
         PMMU* memory;
@@ -44,6 +56,12 @@ class CPU {
         // Integer Multiply/Divide Registers
         uint32_t HI;
         uint32_t LO;
+    
+        // Cycle counter
+        uint64_t cycleCounter;
+    
+        // Very temporary thread signal
+        uint32_t signal;
     
         // Program Counter and Instruction Register
         uint32_t PC;
@@ -63,10 +81,11 @@ class CPU {
         uint8_t funct;
         uint16_t imm;
         uint32_t jimm;
+        uint8_t sel;
     
         // Temporary Variables for dispatchLoop
         // These need to be class members as Clang complains about
-        // potentially uninitialized variables do to the heavy use
+        // potentially uninitialized variables due to the heavy use
         // of gotos in dispatchLoop()
         uint64_t tempu64;
         uint32_t tempu32;
@@ -82,18 +101,17 @@ class CPU {
         static const char* registerNames[32];
     
         // CPU Execution Functions
-        void fetch();
-        void decode();
+        //void fetch();
+        void decodeAll();
         void dispatchLoop();
     
-    #ifdef DEBUGCPU
         void debugPrint();
-    #endif
     
     public:
         CPU(PMMU* memory);
         void setPC(uint32_t addr);
         void start();
+        void sendSignal(uint32_t);
 };
 
 #endif /* CPU_h */
