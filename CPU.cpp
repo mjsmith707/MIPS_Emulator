@@ -13,11 +13,11 @@ const char* CPU::opcodeNames[64] {
 /* 0x00 */ "invalid", "invalid", "j", "jal", "beq", "bne", "blez", "bgtz", "addi", "addiu",
 /* 0x0A */ "slti", "sltiu", "andi", "ori", "xori", "lui",
 /* 0x10 */ "invalid", "cop1", "cop2", "invalid", "beql", "bnel", "blezl", "bgtzl", "invalid", "invalid",
-/* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x1A */ "invalid", "invalid", "special2", "invalid", "invalid", "invalid",
 /* 0x20 */ "lb", "lh", "lwl", "lw", "lbu", "lhu", "lwr", "invalid", "sb", "sh",
 /* 0x2A */ "swl", "sw", "invalid", "invalid", "swr", "cache",
-/* 0x30 */ "ll", "lwcl", "invalid", "pref", "invalid", "invalid", "invalid", "invalid", "sc", "swcl",
-/* 0x3A */ "invalid", "invalid", "invalid", "sdc1", "sdc2", "invalid"
+/* 0x30 */ "ll", "lwc1", "lwc2", "pref", "invalid", "ldc1", "ldc2", "invalid", "sc", "swc1",
+/* 0x3A */ "swc2", "invalid", "invalid", "sdc1", "sdc2", "invalid"
 };
 
 const char* CPU::functNames[64] {
@@ -32,14 +32,14 @@ const char* CPU::functNames[64] {
 };
 
 const char* CPU::special2Names[64] {
-/* 0x00 */ "invalid", "invalid", "mul", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x00 */ "madd", "maddu", "mul", "invalid", "msub", "msubu", "invalid", "invalid", "invalid",
 /* 0x0A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x20 */ "clz", "clo", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x2A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x30 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x3A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
+/* 0x3A */ "invalid", "invalid", "invalid", "invalid", "invalid", "sdbbp"
 };
 
 const char* CPU::special3Names[64] {
@@ -54,8 +54,8 @@ const char* CPU::special3Names[64] {
 };
 
 const char* CPU::regimmNames[32] {
-/* 0x00 */ "bltz", "bgez", "bltzl", "bgezl", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x0A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x00 */ "bltz", "bgez", "bltzl", "bgezl", "invalid", "invalid", "invalid", "invalid", "tgei", "tgeiu",
+/* 0x0A */ "tlti", "tltiu", "teqi", "invalid", "tnei", "invalid",
 /* 0x10 */ "bltzal", "bgezal", "bltzall", "bgezall", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
 };
@@ -63,8 +63,8 @@ const char* CPU::regimmNames[32] {
 const char* CPU::cop0Names[32] {
 /* 0x00 */ "mfc0", "invalid", "invalid", "invalid", "mtc0", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x0A */ "invalid", "di", "invalid", "invalid", "invalid", "invalid",
-/* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
+/* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "eret", "invalid",
+/* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "deret"
 };
 
 const char* CPU::registerNames[32] {
@@ -248,20 +248,20 @@ void CPU::dispatchLoop() {
         &&SWR,      // 0x2E
         &&CACHE,    // 0x2F
         &&LL,       // 0x30
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x31
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x32
+        &&LWC1,     // 0x31
+        &&LWC2,     // 0x32
         &&PREF,     // 0x33
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x34
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x35
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x36
+        &&LDC1,     // 0x35
+        &&LDC2,     // 0x36
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x37
         &&SC,       // 0x38
-        &&SWCL,     // 0x39
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x3A
+        &&SWC1,     // 0x39
+        &&SWC2,     // 0x3A
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3B
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3C
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x3D
-        &&UNIMPLEMENTED_INSTRUCTION,    // 0x3E
+        &&SDC1,     // 0x3D
+        &&SDC2,     // 0x3E
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3F
     };
     
@@ -333,12 +333,12 @@ void CPU::dispatchLoop() {
     };
     
     static void* special2Table[64] {
-        &&INVALID_INSTRUCTION,          // 0x00
-        &&INVALID_INSTRUCTION,          // 0x01
+        &&MADD,     // 0x00
+        &&MADDU,    // 0x01
         &&MUL,      // 0x02
         &&INVALID_INSTRUCTION,          // 0x03
-        &&INVALID_INSTRUCTION,          // 0x04
-        &&INVALID_INSTRUCTION,          // 0x05
+        &&MSUB,     // 0x04
+        &&MSUBU,    // 0x05
         &&INVALID_INSTRUCTION,          // 0x06
         &&INVALID_INSTRUCTION,          // 0x07
         &&INVALID_INSTRUCTION,          // 0x08
@@ -396,7 +396,7 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x3C
         &&INVALID_INSTRUCTION,          // 0x3D
         &&INVALID_INSTRUCTION,          // 0x3E
-        &&INVALID_INSTRUCTION,          // 0x3F
+        &&SDBBP,    // 0x3F
     };
     
     static void* special3Table[64] {
@@ -475,13 +475,13 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x05
         &&INVALID_INSTRUCTION,          // 0x06
         &&INVALID_INSTRUCTION,          // 0x07
-        &&INVALID_INSTRUCTION,          // 0x08
-        &&INVALID_INSTRUCTION,          // 0x09
-        &&INVALID_INSTRUCTION,          // 0x0A
-        &&INVALID_INSTRUCTION,          // 0x0B
-        &&INVALID_INSTRUCTION,          // 0x0C
+        &&TGEI,     // 0x08
+        &&TGEIU,    // 0x09
+        &&TLTI,     // 0x0A
+        &&TLTIU,    // 0x0B
+        &&TEQI,     // 0x0C
         &&INVALID_INSTRUCTION,          // 0x0D
-        &&INVALID_INSTRUCTION,          // 0x0E
+        &&TNEI,     // 0x0E
         &&INVALID_INSTRUCTION,          // 0x0F
         &&BLTZAL,   // 0x10
         &&BGEZAL,   // 0x11
@@ -526,14 +526,14 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x15
         &&INVALID_INSTRUCTION,          // 0x16
         &&INVALID_INSTRUCTION,          // 0x17
-        &&INVALID_INSTRUCTION,          // 0x18
+        &&ERET,     // 0x18
         &&INVALID_INSTRUCTION,          // 0x19
         &&INVALID_INSTRUCTION,          // 0x1A
         &&INVALID_INSTRUCTION,          // 0x1B
         &&INVALID_INSTRUCTION,          // 0x1C
         &&INVALID_INSTRUCTION,          // 0x1D
         &&INVALID_INSTRUCTION,          // 0x1E
-        &&INVALID_INSTRUCTION,          // 0x1F
+        &&DERET,    // 0x1F
     };
 
     // Dispatch macro
@@ -800,6 +800,7 @@ void CPU::dispatchLoop() {
     LWL:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x23 Load Word
     LW:
         DECODE_RS();
@@ -892,9 +893,15 @@ void CPU::dispatchLoop() {
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
-    // 0x31
+    // 0x31 Load Word to Floating Point
+    LWC1:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
-    // 0x32
+    // 0x32 Load Word to Coprocessor 2
+    LWC2:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
     // 0x33 Prefetch
     PREF:
@@ -903,9 +910,15 @@ void CPU::dispatchLoop() {
     
     // 0x34
     
-    // 0x35
+    // 0x35 Load Doubleword to Floating Point
+    LDC1:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
-    // 0x36
+    // 0x36 Load Doubleword to Coprocessor 2
+    LDC2:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
     // 0x37
     
@@ -913,20 +926,30 @@ void CPU::dispatchLoop() {
     SC:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
-    // 0x39
-    SWCL:
+    
+    // 0x39 Store Word from Floating Point
+    SWC1:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
-    // 0x3A
+    // 0x3A Store Word from Coprocessor 2
+    SWC2:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
     // 0x3B
     
     // 0x3C
     
-    // 0x3D
+    // 0x3D Store Doubleword from Floating Point
+    SDC1:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
-    // 0x3E
+    // 0x3E Store Doubleword from Coprocessor 2
+    SDC2:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
     
     // 0x3F
     
@@ -945,6 +968,7 @@ void CPU::dispatchLoop() {
         DECODE_SHAMT();
         registers[rd] = registers[rt] << shamt;
         DISPATCH();
+    
     // 0x01
     
     // 0x02 Shift Right Logical
@@ -954,6 +978,7 @@ void CPU::dispatchLoop() {
         DECODE_SHAMT();
         registers[rd] = registers[rt] >> shamt;
         DISPATCH();
+    
     // 0x03 Shift Right Arithmetic
     SRA:
         DECODE_RD();
@@ -961,6 +986,7 @@ void CPU::dispatchLoop() {
         DECODE_SHAMT();
         registers[rd] = (int32_t)registers[rt] >> shamt;
         DISPATCH();
+    
     // 0x04 Shift Word Left Logical Variable
     SLLV:
         DECODE_RD();
@@ -968,6 +994,7 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         registers[rd] = registers[rt] << registers[rs];
         DISPATCH();
+    
     // 0x05
     
     // 0x06 Shift Word Left Arithmetic Variable
@@ -977,6 +1004,7 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         registers[rd] = (int32_t)registers[rt] << registers[rs];
         DISPATCH();
+    
     // 0x07 Shift Word Right Arithmetic Variable
     SRAV:
         DECODE_RD();
@@ -984,6 +1012,7 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         registers[rd] = (int32_t)registers[rt] >> registers[rs];
         DISPATCH();
+    
     // 0x08 Jump Register
     JR:
         DECODE_RS();
@@ -991,6 +1020,7 @@ void CPU::dispatchLoop() {
         branchDelay = true;
         branchAddr = registers[rs];
         DISPATCH();
+    
     // 0x09 Jump And Link Register
     JALR:
         DECODE_RD();
@@ -999,6 +1029,7 @@ void CPU::dispatchLoop() {
         registers[rd] = PC+4;
         branchAddr = registers[rs];
         DISPATCH();
+    
     // 0x0A Move Conditional On Zero
     MOVZ:
         DECODE_RD();
@@ -1008,6 +1039,7 @@ void CPU::dispatchLoop() {
             registers[rd] = registers[rs];
         }
         DISPATCH();
+    
     // 0x0B Move Conditional On Not Zero
     MOVN:
         DECODE_RD();
@@ -1017,40 +1049,48 @@ void CPU::dispatchLoop() {
             registers[rd] = registers[rs];
         }
         DISPATCH();
+    
     // 0x0C System Call
     SYSCALL:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x0D Breakpoint
     BREAK:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x0E
     
     // 0x0F Sync
     SYNC:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x10 Move From HI Register
     MFHI:
         DECODE_RD();
         registers[rd] = HI;
         DISPATCH();
+    
     // 0x11 Move To HI Register
     MTHI:
         DECODE_RS();
         HI = registers[rs];
         DISPATCH();
+    
     // 0x12 Move From LO Register
     MFLO:
         DECODE_RD();
         registers[rd] = LO;
         DISPATCH();
+    
     // 0x13 Move To LO Register
     MTLO:
         DECODE_RS();
         LO = registers[rs];
         DISPATCH();
+    
     // 0x14
     
     // 0x15
@@ -1067,6 +1107,7 @@ void CPU::dispatchLoop() {
         HI = tempu64 >> 32;
         LO = tempu64 & 0x00000000FFFFFFFF;
         DISPATCH();
+    
     // 0x19 Multiply Unsigned Word
     MULTU:
         DECODE_RS();
@@ -1075,6 +1116,7 @@ void CPU::dispatchLoop() {
         HI = tempu64 >> 32;
         LO = tempu64 & 0x00000000FFFFFFFF;
         DISPATCH();
+    
     // 0x1A Divide Word
     DIV:
         DECODE_RS();
@@ -1084,6 +1126,7 @@ void CPU::dispatchLoop() {
             LO = (int32_t)registers[rs] / (int32_t)registers[rt];
         }
         DISPATCH();
+    
     // 0x1B Divide Unsigned Word
     DIVU:
         DECODE_RS();
@@ -1093,6 +1136,7 @@ void CPU::dispatchLoop() {
             LO = registers[rs] / registers[rt];
         }
         DISPATCH();
+    
     // 0x1C
     
     // 0x1D
@@ -1114,6 +1158,7 @@ void CPU::dispatchLoop() {
             registers[rd] = tempi32;
         }
         DISPATCH();
+    
     // 0x21 Add Unsigned Word
     ADDU:
         DECODE_RS();
@@ -1121,6 +1166,7 @@ void CPU::dispatchLoop() {
         DECODE_RD();
         registers[rd] = registers[rs] + registers[rt];
         DISPATCH();
+    
     // 0x22 Subtract Word
     SUB:
         DECODE_RS();
@@ -1134,6 +1180,7 @@ void CPU::dispatchLoop() {
             registers[rd] = tempi32;
         }
         DISPATCH();
+    
     // 0x23 Subtract Word Unsigned
     SUBU:
         DECODE_RS();
@@ -1141,6 +1188,7 @@ void CPU::dispatchLoop() {
         DECODE_RD();
         registers[rd] = registers[rs] - registers[rt];
         DISPATCH();
+    
     // 0x24 Bitwise AND
     AND:
         DECODE_RS();
@@ -1148,6 +1196,7 @@ void CPU::dispatchLoop() {
         DECODE_RD();
         registers[rd] = registers[rs] & registers[rt];
         DISPATCH();
+    
     // 0x25 Bitwise OR
     OR:
         DECODE_RS();
@@ -1155,6 +1204,7 @@ void CPU::dispatchLoop() {
         DECODE_RD();
         registers[rd] = registers[rs] | registers[rt];
         DISPATCH();
+    
     // 0x26 Bitwise XOR
     XOR:
         DECODE_RS();
@@ -1162,6 +1212,7 @@ void CPU::dispatchLoop() {
         DECODE_RD();
         registers[rd] = registers[rs] ^ registers[rt];
         DISPATCH();
+    
     // 0x27 Bitwise NOR
     NOR:
         DECODE_RS();
@@ -1180,6 +1231,7 @@ void CPU::dispatchLoop() {
         DECODE_RD();
         registers[rd] = (int32_t)registers[rs] < (int32_t)registers[rt];
         DISPATCH();
+    
     // 0x2B Set on Less Than Unsigned
     SLTU:
         DECODE_RS();
@@ -1199,22 +1251,27 @@ void CPU::dispatchLoop() {
     TGE:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x31 Trap if Greater or Equal Unsigned
     TGEU:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x32 Trap if Less Than
     TLT:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x33 Trap if Less Than Unsigned
     TLTU:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x34 Trap if Equal
     TEQ:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+    
     // 0x35 Trap if Not Equal
     TNE:
         goto UNIMPLEMENTED_INSTRUCTION;
@@ -1226,8 +1283,28 @@ void CPU::dispatchLoop() {
 /*
  *  === SPECIAL2 Instructions ===
  */
+    // 0x00 Multiply and Add Word to Hi,Lo
+    MADD:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x01 Multiply and Add Unsigned Word to Hi,Lo
+    MADDU:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
     // 0x02 Multiply Word to GPR
     MUL:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x04 Multiply and Subtract Word to Hi,Lo
+    MSUB:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x05 Multiply and Subtract Unsigned Word to Hi,Lo
+    MSUBU:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
@@ -1238,6 +1315,11 @@ void CPU::dispatchLoop() {
     
     // 0x21 Count Loading Ones in Word
     CLO:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x3F Software Debug Breakpoint
+    SDBBP:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
@@ -1279,6 +1361,7 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
     // 0x01 Branch on Greater Than or Equal to Zero
     BGEZ:
         DECODE_RS();
@@ -1289,6 +1372,7 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
     // 0x02 Branch on Less Than Zero Likely
     BLTZL:
         DECODE_RS();
@@ -1299,6 +1383,7 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
     // 0x03 Branch on Greater Than or Equal to Zero Likely
     BGEZL:
         DECODE_RS();
@@ -1309,6 +1394,37 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
+    // 0x08 Trap if Greater or Equal Immediate
+    TGEI:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x09 Trap if Greater or Equal Immediate Unsigned
+    TGEIU:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x0A Trap if Less Than Immediate
+    TLTI:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x0B Trap if Less Than Immediate Unsigned
+        TLTIU:
+        goto UNIMPLEMENTED_INSTRUCTION;
+    //DISPATCH();
+    
+    // 0x0C Trap if Equal Immediate
+    TEQI:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x0E Trap if Not Equal
+    TNEI:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
     // 0x10 Branch on Less Than Zero and Link
     BLTZAL:
         DECODE_RS();
@@ -1320,6 +1436,7 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
     // 0x11 Branch on Greater Than or Equal to Zero and Link
     BGEZAL:
         DECODE_RS();
@@ -1331,6 +1448,7 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
     // 0x12 Branch on Less Than Zero and Link Likely
     BLTZALL:
         DECODE_RS();
@@ -1342,6 +1460,7 @@ void CPU::dispatchLoop() {
             branchAddr += (int16_t)imm << 2;
         }
         DISPATCH();
+    
     // 0x13 Branch on Greater Than Zero and Link Likely
     BGEZALL:
         DECODE_RS();
@@ -1378,6 +1497,15 @@ void CPU::dispatchLoop() {
     
     // 0x0B Disable Interrupts
     DI:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    // 0x18 Exception Return
+    ERET:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        //DISPATCH();
+    
+    // 0x1F Debug Exception Return
+    DERET:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
 /*

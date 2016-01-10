@@ -104,7 +104,6 @@ class CPU {
         static const char* registerNames[32];
     
         // CPU Execution Functions
-        //void fetch();
         void decodeAll();
         void dispatchLoop();
     
