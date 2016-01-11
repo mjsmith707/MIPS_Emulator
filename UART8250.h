@@ -23,7 +23,7 @@ class UART8250 : public MMIO_Device {
     
         // UART Base address
         #define UART_BASE 0xB40003F8
-        
+    
         // Port Registers
         uint8_t THR;
         uint8_t RBR;

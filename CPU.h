@@ -93,6 +93,7 @@ class CPU {
         uint64_t tempu64;
         uint32_t tempu32;
         int32_t tempi32;
+        int64_t tempi64;
     
         // String tables for readable instruction decoding
         static const char* opcodeNames[64];

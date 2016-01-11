@@ -798,8 +798,17 @@ void CPU::dispatchLoop() {
     
     // 0x22 Load Word Left
     LWL:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
+        tempi32 = registers[rs] + (int16_t)imm;
+        registers[rt] &= 0x0000FFFF;
+        tempu32 = memory->readByte(tempi32);
+        tempu32 <<= 8;
+        tempu32 |= memory->readByte(tempi32+1);
+        tempu32 <<= 16;
+        registers[rt] |= tempu32;
+        DISPATCH();
     
     // 0x23 Load Word
     LW:
@@ -834,8 +843,17 @@ void CPU::dispatchLoop() {
     
     // 0x26 Load Word Right
     LWR:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
+        tempi32 = registers[rs] + (int16_t)imm;
+        registers[rt] &= 0xFFFF0000;
+        tempu32 = memory->readByte(tempi32-1);
+        tempu32 <<= 8;
+        tempu32 |= memory->readByte(tempi32);
+        tempu32 <<= 8;
+        registers[rt] |= tempu32;
+        DISPATCH();
     
     // 0x27
     
@@ -861,8 +879,13 @@ void CPU::dispatchLoop() {
     
     // 0x2A Store Word Left
     SWL:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
+        tempi32 = registers[rs] + (int16_t)imm;
+        memory->storeByte(tempi32, (registers[rt] & 0xFF000000) >> 24);
+        memory->storeByte(tempi32+1, (registers[rt] & 0x00FF0000) >> 16);
+        DISPATCH();
     
     // 0x2B Store Word
     SW:
@@ -880,8 +903,13 @@ void CPU::dispatchLoop() {
     
     // 0x2E Store Word Right
     SWR:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMM();
+        tempi32 = registers[rs] + (int16_t)imm;
+        memory->storeByte(tempi32-1, (registers[rt] & 0x0000FF00) >> 8);
+        memory->storeByte(tempi32, registers[rt] & 0x000000FF);
+        DISPATCH();
     
     // 0x2F Cache
     CACHE:
@@ -1285,38 +1313,94 @@ void CPU::dispatchLoop() {
  */
     // 0x00 Multiply and Add Word to Hi,Lo
     MADD:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        tempi32 = (int32_t)registers[rs] * (int32_t)registers[rt];
+        tempu64 = HI;
+        tempu64 <<= 32;
+        tempu64 |= LO;
+        // FIXME: This addition is supposed to be signed? Manual unclear..
+        tempu64 += tempi32;
+        HI = tempu64 >> 32;
+        LO = tempu64 & 0x00000000FFFFFFFF;
+        DISPATCH();
     
     // 0x01 Multiply and Add Unsigned Word to Hi,Lo
     MADDU:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        tempu32 = registers[rs] * registers[rt];
+        tempu64 = HI;
+        tempu64 <<= 32;
+        tempu64 |= LO;
+        tempu64 += tempu32;
+        HI = tempu64 >> 32;
+        LO = tempu64 & 0x00000000FFFFFFFF;
+        DISPATCH();
     
     // 0x02 Multiply Word to GPR
     MUL:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
+        tempi64 = (int32_t)registers[rs] * (int32_t)registers[rt];
+        registers[rd] = tempi64 & 0x00000000FFFFFFFF;
+        DISPATCH();
     
     // 0x04 Multiply and Subtract Word to Hi,Lo
     MSUB:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        tempi32 = (int32_t)registers[rs] * (int32_t)registers[rt];
+        tempu64 = HI;
+        tempu64 <<= 32;
+        tempu64 |= LO;
+        // FIXME: This subtraction is supposed to be signed? Manual unclear..
+        tempu64 -= tempi32;
+        HI = tempu64 >> 32;
+        LO = tempu64 & 0x00000000FFFFFFFF;
+        DISPATCH();
     
     // 0x05 Multiply and Subtract Unsigned Word to Hi,Lo
     MSUBU:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        tempu32 = registers[rs] * registers[rt];
+        tempu64 = HI;
+        tempu64 <<= 32;
+        tempu64 |= LO;
+        tempu64 -= tempu32;
+        HI = tempu64 >> 32;
+        LO = tempu64 & 0x00000000FFFFFFFF;
+        DISPATCH();
     
     // 0x20 Count Leading Zeroes in Word
     CLZ:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RD();
+        tempu32 = 0;
+        for (tempi32 = 31; tempi32 >= 0; tempi32--) {
+            if ((registers[rs] & (0x1 << tempi32)) != 0) {
+                tempu32 = 31 - tempi32;
+                break;
+            }
+        }
+        registers[rd] = tempu32;
+        DISPATCH();
     
     // 0x21 Count Loading Ones in Word
     CLO:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RD();
+        tempu32 = 0;
+        for (tempi32 = 31; tempi32 >= 0; tempi32--) {
+            if ((registers[rs] & (0x1 << tempi32)) == 0) {
+                tempu32 = 31 - tempi32;
+                break;
+            }
+        }
+        registers[rd] = tempu32;
+        DISPATCH();
     
     // 0x3F Software Debug Breakpoint
     SDBBP:

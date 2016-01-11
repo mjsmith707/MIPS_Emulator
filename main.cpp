@@ -39,7 +39,6 @@ int main(int argc, const char * argv[]) {
     
     // Load binary
     loadFile(argv[1], memory, cpu0);
-    //loadFile("netbsd.elf", memory, cpu0);
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
@@ -47,7 +46,6 @@ int main(int argc, const char * argv[]) {
     
     // Wait for console input
     waitForInput(uart8250);
-    
     
     // Stop CPU
     cpu0->sendSignal(1);
