@@ -851,7 +851,6 @@ void CPU::dispatchLoop() {
         tempu32 = memory->readByte(tempi32-1);
         tempu32 <<= 8;
         tempu32 |= memory->readByte(tempi32);
-        tempu32 <<= 8;
         registers[rt] |= tempu32;
         DISPATCH();
     
