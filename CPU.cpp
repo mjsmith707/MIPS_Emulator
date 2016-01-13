@@ -47,7 +47,7 @@ const char* CPU::special3Names[64] {
 /* 0x0A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x20 */ "seh", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x20 */ "bshfl", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x2A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x30 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x3A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
@@ -65,6 +65,17 @@ const char* CPU::cop0Names[32] {
 /* 0x0A */ "invalid", "di", "invalid", "invalid", "invalid", "invalid",
 /* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "eret", "invalid",
 /* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "deret"
+};
+
+const char* CPU::cop0CONames[64] {
+/* 0x00 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x0A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x20 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x2A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x30 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x3A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
 };
 
 const char* CPU::registerNames[32] {
@@ -432,7 +443,7 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x1D
         &&INVALID_INSTRUCTION,          // 0x1E
         &&INVALID_INSTRUCTION,          // 0x1F
-        &&SEH,      // 0x20
+        &&BSHFL,    // 0x20
         &&INVALID_INSTRUCTION,          // 0x21
         &&INVALID_INSTRUCTION,          // 0x22
         &&INVALID_INSTRUCTION,          // 0x23
@@ -534,6 +545,41 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x1D
         &&INVALID_INSTRUCTION,          // 0x1E
         &&DERET,    // 0x1F
+    };
+    
+    static void* cop0COTable[32] {
+        &&INVALID_INSTRUCTION,          // 0x00
+        &&INVALID_INSTRUCTION,          // 0x01
+        &&INVALID_INSTRUCTION,          // 0x02
+        &&INVALID_INSTRUCTION,          // 0x03
+        &&INVALID_INSTRUCTION,          // 0x04
+        &&INVALID_INSTRUCTION,          // 0x05
+        &&INVALID_INSTRUCTION,          // 0x06
+        &&INVALID_INSTRUCTION,          // 0x07
+        &&INVALID_INSTRUCTION,          // 0x08
+        &&INVALID_INSTRUCTION,          // 0x09
+        &&INVALID_INSTRUCTION,          // 0x0A
+        &&INVALID_INSTRUCTION,          // 0x0B
+        &&INVALID_INSTRUCTION,          // 0x0C
+        &&INVALID_INSTRUCTION,          // 0x0D
+        &&INVALID_INSTRUCTION,          // 0x0E
+        &&INVALID_INSTRUCTION,          // 0x0F
+        &&INVALID_INSTRUCTION,          // 0x10
+        &&INVALID_INSTRUCTION,          // 0x11
+        &&INVALID_INSTRUCTION,          // 0x12
+        &&INVALID_INSTRUCTION,          // 0x13
+        &&INVALID_INSTRUCTION,          // 0x14
+        &&INVALID_INSTRUCTION,          // 0x15
+        &&INVALID_INSTRUCTION,          // 0x16
+        &&INVALID_INSTRUCTION,          // 0x17
+        &&INVALID_INSTRUCTION,          // 0x18
+        &&INVALID_INSTRUCTION,          // 0x19
+        &&INVALID_INSTRUCTION,          // 0x1A
+        &&INVALID_INSTRUCTION,          // 0x1B
+        &&INVALID_INSTRUCTION,          // 0x1C
+        &&INVALID_INSTRUCTION,          // 0x1D
+        &&INVALID_INSTRUCTION,          // 0x1E
+        &&INVALID_INSTRUCTION,          // 0x1F
     };
 
     // Dispatch macro
@@ -648,17 +694,27 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         DECODE_RT();
         DECODE_IMM();
-        registers[rt] = (int16_t)registers[rs] < (int16_t)imm;
+        if ((int32_t)registers[rs] < (int16_t)imm) {
+            registers[rt] = 1;
+        }
+        else {
+            registers[rt] = 0;
+        }
         DISPATCH();
         
-    // 0x0B Shift Left Immediate Unsigned
+    // 0x0B Set on Less Than Immediate Unsigned
     SLTIU:
         DECODE_RS();
         DECODE_RT();
         DECODE_IMM();
-        registers[rt] = registers[rs] < imm;
+        if (registers[rs] < imm) {
+            registers[rt] = 1;
+        }
+        else {
+            registers[rt] = 0;
+        }
         DISPATCH();
-        
+    
     // 0x0C And Immediate
     ANDI:
         DECODE_RS();
@@ -692,8 +748,14 @@ void CPU::dispatchLoop() {
         
     // 0x10 COP0 Instructions
     COP0:
-        DECODE_RS();
-        goto *cop0Table[rs];
+        if (DECODE_CO() == 0) {
+            DECODE_RS();
+            goto *cop0Table[rs];
+        }
+        else {
+            DECODE_FUNCT();
+            
+        }
     
     // 0x11 COP1
     COP1:
@@ -1000,10 +1062,22 @@ void CPU::dispatchLoop() {
     
     // 0x02 Shift Right Logical
     SRL:
+        DECODE_RS();
         DECODE_RD();
         DECODE_RT();
         DECODE_SHAMT();
-        registers[rd] = registers[rt] >> shamt;
+        if (rs == 0) {
+            // SRL
+            registers[rd] = registers[rt] >> shamt;
+        }
+        else {
+            // ROTR Rotate Word Right
+            // https://en.wikipedia.org/wiki/Circular_shift
+            tempu32 = (CHAR_BIT * sizeof(registers[rt]) - 1);
+            tempu32_2 = shamt;
+            tempu32_2 &= tempu32;
+            registers[rd] = (registers[rt] >> tempu32_2) | (registers[rt] << ((-tempu32_2) & tempu32));
+        }
         DISPATCH();
     
     // 0x03 Shift Right Arithmetic
@@ -1024,12 +1098,25 @@ void CPU::dispatchLoop() {
     
     // 0x05
     
-    // 0x06 Shift Word Left Arithmetic Variable
+    // 0x06 Shift Word Right Logical Variable
     SRLV:
         DECODE_RD();
         DECODE_RT();
         DECODE_RS();
-        registers[rd] = (int32_t)registers[rt] << registers[rs];
+        DECODE_SHAMT();
+        if (shamt == 0) {
+            // SRLV
+            registers[rd] = registers[rt] >> registers[rs];
+        }
+        else {
+            // ROTRV
+            // ROTR Rotate Word Right Variable
+            // https://en.wikipedia.org/wiki/Circular_shift
+            tempu32 = (CHAR_BIT * sizeof(registers[rt]) - 1);
+            tempu32_2 = registers[rs] & 0x00000005;
+            tempu32_2 &= tempu32;
+            registers[rd] = (registers[rt] >> tempu32_2) | (registers[rt] << ((-tempu32_2) & tempu32));
+        }
         DISPATCH();
     
     // 0x07 Shift Word Right Arithmetic Variable
@@ -1256,7 +1343,12 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         DECODE_RT();
         DECODE_RD();
-        registers[rd] = (int32_t)registers[rs] < (int32_t)registers[rt];
+        if ((int32_t)registers[rs] < (int32_t)registers[rt]) {
+            registers[rd] = 1;
+        }
+        else {
+            registers[rd] = 0;
+        }
         DISPATCH();
     
     // 0x2B Set on Less Than Unsigned
@@ -1264,8 +1356,14 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         DECODE_RT();
         DECODE_RD();
-        registers[rd] = registers[rs] < registers[rt];
+        if (registers[rs] < registers[rt]) {
+            registers[rd] = 1;
+        }
+        else {
+            registers[rd] = 0;
+        }
         DISPATCH();
+    
     // 0x2C
     
     // 0x2D
@@ -1414,19 +1512,84 @@ void CPU::dispatchLoop() {
  *  === SPECIAL3 Instructions ===
  */
     // 0x00 Extract Bit Field
+    // FIXME: Definitely need to verify correctness here
     EXT:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
+        DECODE_SHAMT();
+        // lsb = shamt
+        // msbd = rd
+        if ((shamt + rd) > 31 ) {
+            // Unpredictable
+        }
+        else {
+            tempu32 = 0;
+            tempu16 = 0;
+            for (tempu8 = shamt; tempu8 <= rd; tempu8++, tempu16++) {
+                tempu32 |= (registers[rs] & (0x1 << tempu8)) << tempu16;
+            }
+            registers[rt] = tempu32;
+        }
+        DISPATCH();
     
     // 0x04 Insert Bit Field
+    // FIXME: Definitely need to verify correctness here
     INS:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_RD();
+        DECODE_SHAMT();
+        // lsb = shamt
+        // msbd = rd
+        if (shamt > rd) {
+            // Unpredictable
+        }
+        else {
+            tempu32 = 0;
+            tempu16 = 0;
+            for (tempu8 = shamt; tempu8 <= rd; tempu8++, tempu16++) {
+                tempu32 |= (registers[rs] & (0x1 << tempu8)) << tempu16;
+                registers[rt] &= ~(0x1 << tempu8);
+            }
+            registers[rt] |= tempu32;
+        }
+        DISPATCH();
     
-    // 0x1F Sign-Extend Halfword
-    SEH:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+    // 0x20 BSHFL
+    BSHFL:
+        // Could be split into another table but there's only 3 instructions using this format?
+        DECODE_SHAMT();
+        DECODE_RT();
+        DECODE_RD();
+        switch (shamt) {
+            // WSBH: Word Swap Bytes Within Halfwords
+            case 0x02: {
+                registers[rd] =  (registers[rt] & 0x00FF0000) << 8;
+                registers[rd] |= (registers[rt] & 0xFF000000) >> 8;
+                registers[rd] |= (registers[rt] & 0x000000FF) << 8;
+                registers[rd] |= (registers[rt] & 0x0000FF00) >> 8;
+                DISPATCH();
+            }
+            // SEB: Sign Extend Byte
+            case 0x10: {
+                tempu8 = registers[rt] & 0x000000FF;
+                tempi32 = tempu8;
+                registers[rd] = tempi32;
+                DISPATCH();
+            }
+            // SEH: Sign Extend Halfword
+            case 0x18: {
+                tempu16 = registers[rt] & 0x0000FFFF;
+                tempi32 = tempu16;
+                registers[rd] = tempi32;
+                DISPATCH();
+            }
+            
+            default:
+                goto UNIMPLEMENTED_INSTRUCTION;
+        }
+    
 /*
  * === END SPECIAL3 ===
  */

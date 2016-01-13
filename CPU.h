@@ -12,6 +12,7 @@
 #undef DEBUGCPU
 
 #include <cstdint>          // uint32_t
+#include <limits>           // CHAR_BIT
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
 // MIPS CPU
@@ -29,12 +30,10 @@ class CPU {
         #define SHAMTMASK   0x000007C0
         #define SHAMTSHIFT  6
         #define FUNCTMASK   0x0000003F
-        #define FUNCTSHIFT  0
         #define IMMMASK     0x0000FFFF
-        #define IMMSHIFT    0
         #define JIMMMASK    0x03FFFFFF
-        #define JIMMSHIFT   0
-        #define SELMASK     0x7
+        #define SELMASK     0x00000007
+        #define COMASK      0x02000000
     
         // Decoder Macros
         #define DECODE_OPCODE() opcode = (IR & OPCODEMASK) >> OPCODESHIFT
@@ -42,10 +41,11 @@ class CPU {
         #define DECODE_RT() rt = (IR & RTMASK) >> RTSHIFT
         #define DECODE_RD() rd = (IR & RDMASK) >> RDSHIFT
         #define DECODE_SHAMT() shamt = (IR & SHAMTMASK) >> SHAMTSHIFT
-        #define DECODE_FUNCT() funct = (IR & FUNCTMASK) >> FUNCTSHIFT
-        #define DECODE_IMM() imm = (IR & IMMMASK) >> IMMSHIFT
-        #define DECODE_JIMM() jimm = (IR & JIMMMASK) >> JIMMSHIFT
-        #define DECODE_SEL() DECODE_IMM(); sel = imm & SELMASK
+        #define DECODE_FUNCT() funct = IR & FUNCTMASK
+        #define DECODE_IMM() imm = IR & IMMMASK
+        #define DECODE_JIMM() jimm = IR & JIMMMASK
+        #define DECODE_SEL() sel = IR & SELMASK
+        #define DECODE_CO() (IR & COMASK)
     
         // Pointer to the memory manager singleton
         PMMU* memory;
@@ -92,6 +92,9 @@ class CPU {
         // of gotos in dispatchLoop()
         uint64_t tempu64;
         uint32_t tempu32;
+        uint32_t tempu32_2;
+        uint16_t tempu16;
+        uint8_t tempu8;
         int32_t tempi32;
         int64_t tempi64;
     
@@ -102,6 +105,7 @@ class CPU {
         static const char* special3Names[64];
         static const char* regimmNames[32];
         static const char* cop0Names[32];
+        static const char* cop0CONames[64];
         static const char* registerNames[32];
     
         // CPU Execution Functions
