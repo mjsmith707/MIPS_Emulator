@@ -12,7 +12,7 @@
 #undef DEBUGCPU
 
 #include <cstdint>          // uint32_t
-#include <limits>           // CHAR_BIT
+#include <climits>          // CHAR_BIT
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
 // MIPS CPU
