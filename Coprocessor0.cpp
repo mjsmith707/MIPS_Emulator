@@ -279,6 +279,24 @@ Coprocessor0::Coprocessor0() {
     registerFile[31][0] = new COP0Register(0x0, 0x0, 0x0);
 }
 
+// Helper functions
+inline bool Coprocessor0::inKernelMode() {
+    return (((registerFile[12][0]->copregister & STATUS_KSUBITS) == 0x0)
+            || ((registerFile[12][0]->copregister & STATUS_EXLBIT) > 0x0)
+            || ((registerFile[12][0]->copregister & STATUS_ERLBIT) > 0x0));
+}
+
+inline bool Coprocessor0::inSupervisorMode() {
+    // FIXME: Not sure if I want this 'feature' or not..
+    return false;
+}
+
+inline bool Coprocessor0::inUserMode() {
+    return (((registerFile[12][0]->copregister & STATUS_KSUBITS) == 0x10)
+            && ((registerFile[12][0]->copregister & STATUS_EXLBIT) == 0x0)
+            && ((registerFile[12][0]->copregister & STATUS_ERLBIT) == 0x0));
+}
+
 uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
     if (registerFile[regnum][sel] == NULL) {
         throw std::runtime_error("Invalid coprocessor register addressed!");

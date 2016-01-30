@@ -22,8 +22,7 @@ class COP0Register {
             READWRITE = 2
         };
     
-        // The actual register
-        uint32_t copregister;
+    
     
         // Register bit controls
         REGBitRW bitfields[32];
@@ -35,6 +34,11 @@ class COP0Register {
     public:
         COP0Register();
         COP0Register(uint32_t value, uint32_t mask1, uint32_t mask2);
+    
+        // The actual register
+        // Publically available for coprocessor uses
+        // Software should use setValue/getValue
+        uint32_t copregister;
     
         // Public accessor
         uint32_t getValue();

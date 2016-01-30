@@ -173,7 +173,7 @@ void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
             // Load segment into memory
             uint32_t addr = (uint32_t)pseg->get_virtual_address();
             for (uint32_t j=0; j < pseg->get_file_size(); j++, addr++) {
-                memory->storeByte(addr, p[j]);
+                memory->storeByte(addr, p[j], cpu->getControlCoprocessor());
             }
         }
     }

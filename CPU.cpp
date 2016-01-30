@@ -104,6 +104,63 @@ void CPU::sendSignal(uint32_t sig) {
     signal = sig;
 }
 
+// Returns the control coprocessor associated with this CPU
+// Mainly for loading elf files into memory
+Coprocessor0* CPU::getControlCoprocessor() {
+    return &cop0_processor;
+}
+
+// For unit testing interface
+#ifdef TEST_PROJECT
+void CPU::stepCPU(uint32_t amount) {
+    for (uint32_t i=0; i<amount; i++) {
+        start();
+    }
+}
+uint32_t CPU::getPC() {
+    return this->PC;
+}
+uint32_t CPU::getIR() {
+    return this->IR;
+}
+uint32_t CPU::getHI() {
+    return this->HI;
+}
+uint32_t CPU::getLO() {
+    return this->LO;
+}
+uint32_t CPU::getRegister(uint8_t num) {
+    return this->registers[num];
+}
+uint8_t CPU::getOpcode() {
+    return this->opcode;
+}
+uint8_t CPU::getRS() {
+    return this->rs;
+}
+uint8_t CPU::getRT() {
+    return this->rt;
+}
+uint8_t CPU::getRD() {
+    return this->rd;
+}
+uint8_t CPU::getShamt() {
+    return this->shamt;
+}
+uint8_t CPU::getFunct() {
+    return this->funct;
+}
+uint16_t CPU::getImm() {
+    return this->imm;
+}
+uint32_t CPU::getJimm() {
+    return this->jimm;
+}
+uint8_t CPU::getSel() {
+    return this->sel;
+}
+#endif
+
 // Prints information about the cpu's execution per cycle
 // Also does on the fly disassembly
 void CPU::debugPrint() {
@@ -178,12 +235,20 @@ void CPU::debugPrint() {
         branch = false; \
         branchDelay = false; \
         PC = branchAddr; \
-        IR = memory->readWord(PC); \
-        PC += 4; \
+        if (memory->readWord(PC, &IR, &cop0_processor)) { \
+            PC += 4; \
+        } \
+        else { \
+            goto HANDLE_TRAP; \
+        } \
     } \
     else { \
-        IR = memory->readWord(PC); \
-        PC += 4; \
+        if (memory->readWord(PC, &IR, &cop0_processor)) { \
+            PC += 4; \
+        } \
+        else { \
+            goto HANDLE_TRAP; \
+        } \
     } \
 \
     if (branchDelay) { \
@@ -583,12 +648,18 @@ void CPU::dispatchLoop() {
     };
 
     // Dispatch macro
-    //#define DISPATCH() fetch() debugPrint(); DECODE_OPCODE(); goto *opcodeTable[opcode]
-    #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+    #ifdef TEST_PROJECT
+        #define DISPATCH() return;
+    #else
+        #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+    #endif
     
     // Begin Dispatch Loop
-    DISPATCH();
-    
+    #ifdef TEST_PROJECT
+        fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+    #else
+        DISPATCH();
+    #endif
 /*
  *  === Opcode Instructions ===
  */
@@ -649,7 +720,7 @@ void CPU::dispatchLoop() {
     BLEZ:
         DECODE_RS();
         DECODE_IMM();
-        if (registers[rs] <= 0) {
+        if ((int32_t)registers[rs] <= 0) {
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
@@ -660,7 +731,7 @@ void CPU::dispatchLoop() {
     BGTZ:
         DECODE_RS();
         DECODE_IMM();
-        if (registers[rs] > 0) {
+        if ((int32_t)registers[rs] > 0) {
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
@@ -796,7 +867,7 @@ void CPU::dispatchLoop() {
     BLEZL:
         DECODE_RS();
         DECODE_IMM();
-        if (registers[rs] <= 0) {
+        if ((int32_t)registers[rs] <= 0) {
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
@@ -807,7 +878,7 @@ void CPU::dispatchLoop() {
     BGTZL:
         DECODE_RS();
         DECODE_IMM();
-        if (registers[rs] > 0) {
+        if ((int32_t)registers[rs] > 0) {
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
@@ -843,9 +914,14 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        tempi32 = memory->readByte(tempi32);
-        registers[rt] = tempi32;
-        DISPATCH();
+        if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
+            tempi32 = tempu8;
+            registers[rt] = tempi32;
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x21 Load Half
     LH:
@@ -854,9 +930,13 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        tempi32 = memory->readHalf(tempi32);
-        registers[rt] = tempi32;
-        DISPATCH();
+        if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
+            registers[rt] = tempi32;
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x22 Load Word Left
     LWL:
@@ -864,13 +944,23 @@ void CPU::dispatchLoop() {
         DECODE_RT();
         DECODE_IMM();
         tempi32 = registers[rs] + (int16_t)imm;
-        registers[rt] &= 0x0000FFFF;
-        tempu32 = memory->readByte(tempi32);
-        tempu32 <<= 8;
-        tempu32 |= memory->readByte(tempi32+1);
-        tempu32 <<= 16;
-        registers[rt] |= tempu32;
-        DISPATCH();
+        if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
+            tempu32 |= tempu8;
+            tempu32 <<= 8;
+            if (memory->readByte(tempi32+1, &tempu8, &cop0_processor)) {
+                tempu32 |= tempu8;
+                tempu32 <<= 16;
+                registers[rt] &= 0x0000FFFF;
+                registers[rt] |= tempu32;
+                DISPATCH();
+            }
+            else {
+                goto HANDLE_TRAP;
+            }
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x23 Load Word
     LW:
@@ -879,9 +969,14 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        tempi32 = memory->readWord(tempi32);
-        registers[rt] = tempi32;
-        DISPATCH();
+        if (memory->readWord(tempi32, &tempu32, &cop0_processor)) {
+            tempi32 = tempu32;
+            registers[rt] = tempi32;
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x24 Load Byte Unsigned
     LBU:
@@ -890,8 +985,13 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        registers[rt] = memory->readByte(tempi32);
-        DISPATCH();
+        if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
+            registers[rt] = tempu8;
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x25 Load Halfword Unsigned
     LHU:
@@ -900,8 +1000,13 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        registers[rt] = memory->readHalf(tempi32);
-        DISPATCH();
+        if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
+            registers[rt] = tempu16;
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x26 Load Word Right
     LWR:
@@ -909,13 +1014,23 @@ void CPU::dispatchLoop() {
         DECODE_RT();
         DECODE_IMM();
         tempi32 = registers[rs] + (int16_t)imm;
-        registers[rt] &= 0xFFFF0000;
-        tempu32 = memory->readByte(tempi32-1);
-        tempu32 <<= 8;
-        tempu32 |= memory->readByte(tempi32);
-        registers[rt] |= tempu32;
-        DISPATCH();
-    
+        if (memory->readByte(tempi32-1, &tempu8, &cop0_processor)) {
+            tempu32 = tempu8;
+            tempu32 <<= 8;
+            if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
+                tempu32 |= tempu8;
+                registers[rt] &= 0xFFFF0000;
+                registers[rt] |= tempu32;
+                DISPATCH();
+            }
+            else {
+                goto HANDLE_TRAP;
+            }
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
+
     // 0x27
     
     // 0x28 Store Byte
@@ -925,8 +1040,12 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        memory->storeByte(tempi32, registers[rt]);
-        DISPATCH();
+        if (memory->storeByte(tempi32, registers[rt], &cop0_processor)) {
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x29 Store Halfword
     SH:
@@ -935,18 +1054,28 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        memory->storeHalf(tempi32, registers[rt]);
-        DISPATCH();
+        if (memory->storeHalf(tempi32, registers[rt], &cop0_processor)) {
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x2A Store Word Left
+    // FIXME: These stores need to be atomic
+    // I.e. both succeed or fail together
     SWL:
         DECODE_RS();
         DECODE_RT();
         DECODE_IMM();
         tempi32 = registers[rs] + (int16_t)imm;
-        memory->storeByte(tempi32, (registers[rt] & 0xFF000000) >> 24);
-        memory->storeByte(tempi32+1, (registers[rt] & 0x00FF0000) >> 16);
-        DISPATCH();
+        if ((memory->storeByte(tempi32, (registers[rt] & 0xFF000000) >> 24, &cop0_processor))
+            && (memory->storeByte(tempi32+1, (registers[rt] & 0x00FF0000) >> 16, &cop0_processor))) {
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x2B Store Word
     SW:
@@ -955,7 +1084,7 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = imm;
         tempi32 += registers[rs];
-        memory->storeWord(tempi32, registers[rt]);
+        memory->storeWord(tempi32, registers[rt], &cop0_processor);
         DISPATCH();
     
     // 0x2C
@@ -963,14 +1092,19 @@ void CPU::dispatchLoop() {
     // 0x2D
     
     // 0x2E Store Word Right
+    // FIXME: Needs to be atomic (see SWL)
     SWR:
         DECODE_RS();
         DECODE_RT();
         DECODE_IMM();
         tempi32 = registers[rs] + (int16_t)imm;
-        memory->storeByte(tempi32-1, (registers[rt] & 0x0000FF00) >> 8);
-        memory->storeByte(tempi32, registers[rt] & 0x000000FF);
-        DISPATCH();
+        if ((memory->storeByte(tempi32-1, (registers[rt] & 0x0000FF00) >> 8, &cop0_processor))
+            && (memory->storeByte(tempi32, registers[rt] & 0x000000FF, &cop0_processor))) {
+            DISPATCH();
+        }
+        else {
+            goto HANDLE_TRAP;
+        }
     
     // 0x2F Cache
     CACHE:
@@ -1762,7 +1896,9 @@ void CPU::dispatchLoop() {
     HANDLE_INTERRUPT:
         //goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
-        
+    
+    HANDLE_TRAP:
+    
     INVALID_INSTRUCTION:
         std::cerr << "ERROR: Invalid instruction!" << std::endl;
         debugPrint();

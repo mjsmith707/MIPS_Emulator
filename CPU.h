@@ -13,6 +13,7 @@
 
 #include <cstdint>          // uint32_t
 #include <climits>          // CHAR_BIT
+#include <thread>           // thread::sleep
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
 // MIPS CPU
@@ -64,7 +65,7 @@ class CPU {
         uint64_t cycleCounter;
     
         // Very temporary thread signal
-        uint32_t signal;
+        volatile uint32_t signal;
     
         // Program Counter and Instruction Register
         uint32_t PC;
@@ -126,6 +127,27 @@ class CPU {
     
         // Sends a signal to the CPU
         void sendSignal(uint32_t);
+    
+        Coprocessor0* getControlCoprocessor();
+    
+        // For unit testing interface
+    #ifdef TEST_PROJECT
+        void stepCPU(uint32_t);
+        uint32_t getPC();
+        uint32_t getIR();
+        uint32_t getHI();
+        uint32_t getLO();
+        uint32_t getRegister(uint8_t);
+        uint8_t getOpcode();
+        uint8_t getRS();
+        uint8_t getRT();
+        uint8_t getRD();
+        uint8_t getShamt();
+        uint8_t getFunct();
+        uint16_t getImm();
+        uint32_t getJimm();
+        uint8_t getSel();
+    #endif
 };
 
 #endif /* CPU_h */
