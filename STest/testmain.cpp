@@ -17,6 +17,7 @@
 #include "MoveTests.h"
 #include "ShiftTests.h"
 #include "TrapTests.h"
+#include "ObsoleteBranchTests.h"
 
 using namespace STest;
 
@@ -31,6 +32,7 @@ int main() {
     add_move_tests();
     add_shift_tests();
     add_trap_tests();
+    add_obsolete_branch_tests();
     
     run_tests();
 }

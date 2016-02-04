@@ -30,11 +30,41 @@ void add_load_store_memory_control_tests() {
 }
 
 void MIPS_LB() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi	v0,zero,-53
+    memory->storeWord(0x00400004, 0x3c011001, cpu0->getControlCoprocessor());   // lui	at,0x1001
+    memory->storeWord(0x00400008, 0x34240020, cpu0->getControlCoprocessor());   // ori	a0,at,0x20
+    memory->storeWord(0x0040000c, 0xa082ffe0, cpu0->getControlCoprocessor());   // sb	v0,-32(a0)
+    memory->storeWord(0x00400010, 0x8083ffe0, cpu0->getControlCoprocessor());   // lb	v1,-32(a0)
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0xffffffcbu, cpu0->getRegister(2));
+    ASSERT_EQUAL(0xffffffcbu, cpu0->getRegister(3));
+    uint32_t word = 0;
+    memory->readWord(0x10010000, &word, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0xcb000000u, word);
+    uint8_t byte = 0;
+    memory->readByte(0x10010000, &byte, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0x000000cbu, (uint32_t)byte);
 }
 
 void MIPS_LBU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi	v0,zero,-53
+    memory->storeWord(0x00400004, 0x3c011001, cpu0->getControlCoprocessor());   // lui	at,0x1001
+    memory->storeWord(0x00400008, 0x34240020, cpu0->getControlCoprocessor());   // ori	a0,at,0x20
+    memory->storeWord(0x0040000c, 0xa082ffe0, cpu0->getControlCoprocessor());   // sb	v0,-32(a0)
+    memory->storeWord(0x00400010, 0x9083ffe0, cpu0->getControlCoprocessor());   // lbu	v1,-32(a0)
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0xffffffcbu, cpu0->getRegister(2));
+    ASSERT_EQUAL(0x000000cbu, cpu0->getRegister(3));
+    uint32_t word = 0;
+    memory->readWord(0x10010000, &word, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0xcb000000u, word);
+    uint8_t byte = 0;
+    memory->readByte(0x10010000, &byte, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0x000000cbu, (uint32_t)byte);
 }
 
 void MIPS_LH() {
@@ -66,7 +96,22 @@ void MIPS_PREF() {
 }
 
 void MIPS_SB() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi	v0,zero,-53
+    memory->storeWord(0x00400004, 0x3c011001, cpu0->getControlCoprocessor());   // lui	at,0x1001
+    memory->storeWord(0x00400008, 0x34240020, cpu0->getControlCoprocessor());   // ori	a0,at,0x20
+    memory->storeWord(0x0040000c, 0xa082ffe0, cpu0->getControlCoprocessor());   // sb	v0,-32(a0)
+    memory->storeWord(0x00400010, 0x8083ffe0, cpu0->getControlCoprocessor());   // lb	v1,-32(a0)
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0xffffffcbu, cpu0->getRegister(2));
+    ASSERT_EQUAL(0xffffffcbu, cpu0->getRegister(3));
+    uint32_t word = 0;
+    memory->readWord(0x10010000, &word, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0xcb000000u, word);
+    uint8_t byte = 0;
+    memory->readByte(0x10010000, &byte, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0x000000cbu, (uint32_t)byte);
 }
 
 void MIPS_SC() {

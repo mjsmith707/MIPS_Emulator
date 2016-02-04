@@ -36,7 +36,7 @@ void STest::run_tests() {
             }
         }
         
-        std::cout << std::endl << std::left << localPassCount << "/" << localTotalCount << " Tests Completed Successfully." << std::endl << std::endl;
+        std::cout << std::endl << std::left << "- " << localPassCount << "/" << localTotalCount << " Tests Completed Successfully." << std::endl << std::endl;
     }
     std::cout << std::left << "Total: " << passCount << "/" << totalCount << " Tests Completed Successfully." << std::endl;
 }
@@ -44,9 +44,9 @@ void STest::run_tests() {
 // Adds a function to the list of tests
 void STest::add_test(const char* category, const char* name, void (*func)()) {
     std::string catstr = category;
-    for (auto& category : STest_Functions) {
-        if (std::get<0>(category).compare(catstr) == 0) {
-            std::get<1>(category).push_back(std::make_tuple(name, func));
+    for (auto& cat : STest_Functions) {
+        if (std::get<0>(cat).compare(catstr) == 0) {
+            std::get<1>(cat).push_back(std::make_tuple(name, func));
             return;
         }
     }

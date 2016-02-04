@@ -23,14 +23,14 @@ void add_logical_tests() {
 void MIPS_AND() {
     reset();
     cpu0->setPC(0x00000000);
-    memory->storeWord(0x00000000, 0x200200c8, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000004, 0x200301f4, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000008, 0x2004ff38, cpu0->getControlCoprocessor());
-    memory->storeWord(0x0000000C, 0x2005fe0c, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000010, 0x00434024, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000014, 0x00454824, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000018, 0x00835024, cpu0->getControlCoprocessor());
-    memory->storeWord(0x0000001C, 0x00855824, cpu0->getControlCoprocessor());
+    memory->storeWord(0x00000000, 0x200200c8, cpu0->getControlCoprocessor());   // addi	v0,zero,200
+    memory->storeWord(0x00000004, 0x200301f4, cpu0->getControlCoprocessor());   // addi	v1,zero,500
+    memory->storeWord(0x00000008, 0x2004ff38, cpu0->getControlCoprocessor());   // addi	a0,zero,-200
+    memory->storeWord(0x0000000C, 0x2005fe0c, cpu0->getControlCoprocessor());   // addi	a1,zero,-500
+    memory->storeWord(0x00000010, 0x00434024, cpu0->getControlCoprocessor());   // and	t0,v0,v1
+    memory->storeWord(0x00000014, 0x00454824, cpu0->getControlCoprocessor());   // and	t1,v0,a1
+    memory->storeWord(0x00000018, 0x00835024, cpu0->getControlCoprocessor());   // and	t2,a0,v1
+    memory->storeWord(0x0000001C, 0x00855824, cpu0->getControlCoprocessor());   // and	t3,a0,a1
     cpu0->stepCPU(8);
     ASSERT_EQUAL(192u, cpu0->getRegister(8));
     ASSERT_EQUAL(8u, cpu0->getRegister(9));
@@ -41,14 +41,14 @@ void MIPS_AND() {
 void MIPS_ANDI() {
     reset();
     cpu0->setPC(0x00000000);
-    memory->storeWord(0x00000000, 0x200200c8, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000004, 0x200301f4, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000008, 0x2004ff38, cpu0->getControlCoprocessor());
-    memory->storeWord(0x0000000C, 0x2005fe0c, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000010, 0x304801f4, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000014, 0x3049fe0c, cpu0->getControlCoprocessor());
-    memory->storeWord(0x00000018, 0x308a01f4, cpu0->getControlCoprocessor());
-    memory->storeWord(0x0000001C, 0x308bfe0c, cpu0->getControlCoprocessor());
+    memory->storeWord(0x00000000, 0x200200c8, cpu0->getControlCoprocessor());   // addi	v0,zero,200
+    memory->storeWord(0x00000004, 0x200301f4, cpu0->getControlCoprocessor());   // addi	v1,zero,500
+    memory->storeWord(0x00000008, 0x2004ff38, cpu0->getControlCoprocessor());   // addi	a0,zero,-200
+    memory->storeWord(0x0000000C, 0x2005fe0c, cpu0->getControlCoprocessor());   // addi	a1,zero,-500
+    memory->storeWord(0x00000010, 0x304801f4, cpu0->getControlCoprocessor());   // andi	t0,v0,0x1f4
+    memory->storeWord(0x00000014, 0x3049fe0c, cpu0->getControlCoprocessor());   // andi	t1,v0,0xfe0c
+    memory->storeWord(0x00000018, 0x308a01f4, cpu0->getControlCoprocessor());   // andi	t2,a0,0x1f4
+    memory->storeWord(0x0000001C, 0x308bfe0c, cpu0->getControlCoprocessor());   // andi	t3,a0,0xfe0c
     cpu0->stepCPU(8);
     ASSERT_EQUAL(192u, cpu0->getRegister(8));
     ASSERT_EQUAL(8u, cpu0->getRegister(9));
