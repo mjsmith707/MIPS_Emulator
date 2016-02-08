@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <sstream> // Pretty unfortunately really...
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -28,17 +29,37 @@ namespace STest {
     // Test exception class
     class STest_Assertion : public std::exception {
         private:
-            std::string message;
+            const std::string message;
+            const std::string expected;
+            const std::string got;
+        
         public:
-            STest_Assertion(const char* msg) {
-                message = msg;
+            STest_Assertion(const char* msg, const char* expected, const char* got)
+            : message(msg), expected(expected), got(got) {
             }
-            STest_Assertion(std::string& msg) {
-                message = msg;
+        
+            STest_Assertion(std::string& msg, std::string& expected, std::string& got)
+            : message(msg), expected(expected), got(got) {
+            }
+        
+            STest_Assertion(std::string& msg)
+            : message(msg), expected(""), got("") {
+            }
+        
+            STest_Assertion(const char* msg)
+            : message(msg), expected(""), got("") {
             }
         
             virtual const char* what() const throw() {
                 return message.c_str();
+            }
+        
+            std::string expectedValue() const {
+                return expected;
+            }
+            
+            std::string gotValue() const {
+                return got;
             }
     };
     
@@ -51,61 +72,79 @@ namespace STest {
     // Assertion templates
     template <typename T> void ASSERT_EQUAL(T val1, T val2) {
         if (val1 != val2) {
-            std::string msg = "ASSERT_EQUAL FAILED:\n\t\t\tExpected: ";
-            msg += std::to_string(val1);
-            msg += " Got: ";
-            msg += std::to_string(val2);
-            throw STest_Assertion(msg);
+            std::string msg = "ASSERT_EQUAL FAILED:";
+            std::stringstream ss1;
+            std::stringstream ss2;
+            ss1 << "0x" << std::hex << val1;
+            ss2 << "0x" << std::hex << val2;
+            std::string expected = ss1.str();
+            std::string got = ss2.str();
+            throw STest_Assertion(msg, expected, got);
         }
     }
     
     template <typename T> void ASSERT_NOT_EQUAL(T val1, T val2) {
         if (val1 == val2) {
-            std::string msg = "ASSERT_NOT_EQUAL FAILED:\n\t\t\tExpected: ";
-            msg += std::to_string(val1);
-            msg += " Got: ";
-            msg += std::to_string(val2);
-            throw STest_Assertion(msg);
+            std::string msg = "ASSERT_NOT_EQUAL FAILED:";
+            std::stringstream ss1;
+            std::stringstream ss2;
+            ss1 << "0x" << std::hex << val1;
+            ss2 << "0x" << std::hex << val2;
+            std::string expected = ss1.str();
+            std::string got = ss2.str();
+            throw STest_Assertion(msg, expected, got);
         }
     }
     
     template <typename T> void ASSERT_LESS_THAN(T val1, T val2) {
         if (val1 >= val2) {
-            std::string msg = "ASSERT_LESS_THAN FAILED:\n\t\t\tExpected: ";
-            msg += std::to_string(val1);
-            msg += " Got: ";
-            msg += std::to_string(val2);
-            throw STest_Assertion(msg);
+            std::string msg = "ASSERT_LESS_THAN FAILED:";
+            std::stringstream ss1;
+            std::stringstream ss2;
+            ss1 << "0x" << std::hex << val1;
+            ss2 << "0x" << std::hex << val2;
+            std::string expected = ss1.str();
+            std::string got = ss2.str();
+            throw STest_Assertion(msg, expected, got);
         }
     }
     
     template <typename T> void ASSERT_LESS_THAN_EQUAL(T val1, T val2) {
         if (val1 > val2) {
-            std::string msg = "ASSERT_LESS_THAN_EQUAL FAILED:\n\t\t\tExpected: ";
-            msg += std::to_string(val1);
-            msg += " Got: ";
-            msg += std::to_string(val2);
-            throw STest_Assertion(msg);
+            std::string msg = "ASSERT_LESS_THAN_EQUAL FAILED:";
+            std::stringstream ss1;
+            std::stringstream ss2;
+            ss1 << "0x" << std::hex << val1;
+            ss2 << "0x" << std::hex << val2;
+            std::string expected = ss1.str();
+            std::string got = ss2.str();
+            throw STest_Assertion(msg, expected, got);
         }
     }
     
     template <typename T> void ASSERT_GREATER_THAN(T val1, T val2) {
         if (val1 <= val2) {
-            std::string msg = "ASSERT_GREATER_THAN FAILED:\n\t\t\tExpected: ";
-            msg += std::to_string(val1);
-            msg += " Got: ";
-            msg += std::to_string(val2);
-            throw STest_Assertion(msg);
+            std::string msg = "ASSERT_GREATER_THAN FAILED:";
+            std::stringstream ss1;
+            std::stringstream ss2;
+            ss1 << "0x" << std::hex << val1;
+            ss2 << "0x" << std::hex << val2;
+            std::string expected = ss1.str();
+            std::string got = ss2.str();
+            throw STest_Assertion(msg, expected, got);
         }
     }
     
     template <typename T> void ASSERT_GREATER_THAN_EQUAL(T val1, T val2) {
         if (val1 < val2) {
-            std::string msg = "ASSERT_GREATER_THAN_EQUAL FAILED:\n\t\t\tExpected: ";
-            msg += std::to_string(val1);
-            msg += " Got: ";
-            msg += std::to_string(val2);
-            throw STest_Assertion(msg);
+            std::string msg = "ASSERT_GREATER_THAN_EQUAL FAILED:";
+            std::stringstream ss1;
+            std::stringstream ss2;
+            ss1 << "0x" << std::hex << val1;
+            ss2 << "0x" << std::hex << val2;
+            std::string expected = ss1.str();
+            std::string got = ss2.str();
+            throw STest_Assertion(msg, expected, got);
         }
     }
     

@@ -85,7 +85,10 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(PMMU* memory) : memory(memory), cycleCounter(0), signal(0) {
+CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0) {
+}
+
+CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0) {
 }
 
 // Sets the initial program counter for the CPU
@@ -165,7 +168,8 @@ uint8_t CPU::getSel() {
 // Also does on the fly disassembly
 void CPU::debugPrint() {
     decodeAll();
-    std::cout << "=== Decode ===" << std::endl
+    std::stringstream ss;
+    ss << "=== Decode ===" << std::endl
     << "Cycle = " << std::dec << cycleCounter << std::endl
     << std::hex << "PC = 0x" << PC-4 << std::endl
     << "IR = 0x" << IR << std::endl
@@ -179,44 +183,46 @@ void CPU::debugPrint() {
     << "jimm = 0x" << std::hex << (int)jimm << std::endl
     << "sel = " << std::dec << (int)sel << std::endl
     << "=== END Decode ===" << std::endl;
-    std::cout << std::dec << "=== Disassembly ===" << std::endl;
+    ss << std::dec << "=== Disassembly ===" << std::endl;
     if (branchDelay) {
-        std::cout << "-- Delay Slot --" << std::endl;
+        ss << "-- Delay Slot --" << std::endl;
     }
     switch (opcode) {
         case 0x0: {
-            std::cout << "SPECIAL RD RS RT" << std::endl
+            ss << "SPECIAL RD RS RT" << std::endl
             << functNames[funct] << " " << registerNames[rd] << ", " << registerNames[rs] << ", " << registerNames[rt] << std::endl;
             break;
         }
         case 0x1: {
-            std::cout << "REGIMM RS IMM" << std::endl
+            ss << "REGIMM RS IMM" << std::endl
             << regimmNames[rt] << " " << registerNames[rs] << ", " << imm << std::endl;
             break;
         }
         case 0x10: {
-            std::cout << "COP0 RT RD SEL" << std::endl
+            ss << "COP0 RT RD SEL" << std::endl
             << cop0Names[rs] << " " << registerNames[rt] << ", " << registerNames[rd] << ", " << (imm&0x7) << std::endl;
             break;
         }
         case 0x1C: {
-            std::cout << "SPECIAL2 RD RS RT" << std::endl
+            ss << "SPECIAL2 RD RS RT" << std::endl
             << special2Names[funct] << " " << registerNames[rd] << ", " << registerNames[rs] << ", " << registerNames[rt] << std::endl;
             break;
         }
         case 0x1F: {
-            std::cout << "SPECIAL3 RD RS RT" << std::endl
+            ss << "SPECIAL3 RD RS RT" << std::endl
             << special3Names[funct] << " " << registerNames[rd] << ", " << registerNames[rs] << ", " << registerNames[rt] << std::endl;
             break;
         }
         default: {
-            std::cout << "OPCODE RT RS IMM/JIMM" << std::endl
+            ss << "OPCODE RT RS IMM/JIMM" << std::endl
             << opcodeNames[opcode] << " " << registerNames[rt] << ", " << registerNames[rs] << ", " << imm << std::hex << ", 0x" << jimm << std::endl;
             break;
         }
     }
-    std::cout << "=== END Disassembly ===" << std::endl << std::endl;
-
+    ss << "=== END Disassembly ===" << std::endl << std::endl;
+    if (consoleUI != nullptr) {
+        consoleUI->sendConsoleMsg(ss.str());
+    }
 }
 
 // Fetches the next instruction into the program counter and instruction register
@@ -1546,25 +1552,24 @@ void CPU::dispatchLoop() {
     MADD:
         DECODE_RS();
         DECODE_RT();
-        tempi32 = (int32_t)registers[rs] * (int32_t)registers[rt];
         tempu64 = HI;
         tempu64 <<= 32;
         tempu64 |= LO;
         // FIXME: This addition is supposed to be signed? Manual unclear..
-        tempu64 += tempi32;
-        HI = tempu64 >> 32;
-        LO = tempu64 & 0x00000000FFFFFFFF;
+        tempi64 = tempu64;
+        tempi64 += (int64_t)registers[rs] * (int64_t)registers[rt];
+        HI = tempi64 >> 32;
+        LO = tempi64 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x01 Multiply and Add Unsigned Word to Hi,Lo
     MADDU:
         DECODE_RS();
         DECODE_RT();
-        tempu32 = registers[rs] * registers[rt];
         tempu64 = HI;
         tempu64 <<= 32;
         tempu64 |= LO;
-        tempu64 += tempu32;
+        tempu64 += registers[rs] * registers[rt];
         HI = tempu64 >> 32;
         LO = tempu64 & 0x00000000FFFFFFFF;
         DISPATCH();
@@ -1900,17 +1905,24 @@ void CPU::dispatchLoop() {
     HANDLE_TRAP:
     
     INVALID_INSTRUCTION:
-        std::cerr << "ERROR: Invalid instruction!" << std::endl;
-        debugPrint();
+        if (consoleUI != nullptr) {
+            consoleUI->sendConsoleMsg("ERROR: Invalid instruction!");
+            debugPrint();
+        }
         return;
+    
     UNIMPLEMENTED_INSTRUCTION:
-        std::cerr << "ERROR: Unimplemented instruction!" << std::endl;
-        debugPrint();
+        if (consoleUI != nullptr) {
+            consoleUI->sendConsoleMsg("ERROR: Unimplemented instruction!");
+            debugPrint();
+        }
         return;
     
     CPU_HALT:
-        std::cout << "CPU Halted." << std::endl;
-        debugPrint();
+        if (consoleUI != nullptr) {
+            consoleUI->sendConsoleMsg("CPU Halted.");
+            debugPrint();
+        }
         return;
 }
 

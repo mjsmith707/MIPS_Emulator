@@ -33,6 +33,9 @@ void STest::run_tests() {
             catch (STest::STest_Assertion& e) {
                 std::cout << std::right << std::setw((int32_t)(80-len) > 0 ? (int32_t)(80-len) : 0) << "[\x1b[31mFAILED\x1b[39;49m]" << std::endl;
                 std::cout << std::left << "\t" << e.what() << std::endl;
+                if (e.expectedValue().size() > 0) {
+                    std::cout << std::left << "\t\tExpected: " << e.expectedValue() << " Got: " << e.gotValue() << std::endl;
+                }
             }
         }
         

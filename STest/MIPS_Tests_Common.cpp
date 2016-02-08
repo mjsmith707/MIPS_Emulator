@@ -27,6 +27,7 @@ void reset() {
     if (cpu0 != nullptr) {
         delete cpu0;
     }
+
     memory = new PMMU(1000000);
     cpu0 = new CPU(memory);
 }

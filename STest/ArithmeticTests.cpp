@@ -36,6 +36,7 @@ void add_arithmetic_tests() {
     add_test("CPU Arithmetic Tests", "MIPS_SUBU", &MIPS_SUBU);
 }
 
+// TODO: Add overflow tests
 void MIPS_ADD() {
     reset();
     cpu0->setPC(0x00000000);
@@ -54,6 +55,7 @@ void MIPS_ADD() {
     ASSERT_EQUAL(-700, (int32_t)cpu0->getRegister(15));
 }
 
+// TODO: Add overflow tests
 void MIPS_ADDI() {
     reset();
     cpu0->setPC(0x00000000);
@@ -76,6 +78,7 @@ void MIPS_ADDI() {
     ASSERT_EQUAL(-700, (int32_t)cpu0->getRegister(11));
 }
 
+// TODO: Add overflow tests
 void MIPS_ADDIU() {
     reset();
     cpu0->setPC(0x00000000);
@@ -94,6 +97,7 @@ void MIPS_ADDIU() {
     ASSERT_EQUAL(-700, (int32_t)cpu0->getRegister(11));
 }
 
+// TODO: Add overflow tests
 void MIPS_ADDU() {
     reset();
     cpu0->setPC(0x00000000);
@@ -167,61 +171,209 @@ void MIPS_DIVU() {
 }
 
 void MIPS_MADD() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x00400011, cpu0->getControlCoprocessor());   // mthi v0
+    memory->storeWord(0x0040000C, 0x00600013, cpu0->getControlCoprocessor());   // mtlo v1
+    memory->storeWord(0x00400010, 0x70430000, cpu0->getControlCoprocessor());   // madd v0,v1
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0xffffffcau, cpu0->getHI());
+    ASSERT_EQUAL(0xffffd760u, cpu0->getLO());
 }
 
 void MIPS_MADDU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x00400011, cpu0->getControlCoprocessor());   // mthi v0
+    memory->storeWord(0x0040000C, 0x00600013, cpu0->getControlCoprocessor());   // mtlo v1
+    memory->storeWord(0x00400010, 0x70430001, cpu0->getControlCoprocessor());   // maddu v0,v1
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0x00000092u, cpu0->getHI());
+    ASSERT_EQUAL(0xffffd760u, cpu0->getLO());
 }
 
 void MIPS_MSUB() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x00400011, cpu0->getControlCoprocessor());   // mthi v0
+    memory->storeWord(0x0040000C, 0x00600013, cpu0->getControlCoprocessor());   // mtlo v1
+    memory->storeWord(0x00400010, 0x70430004, cpu0->getControlCoprocessor());   // msub v0,v1
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0xffffffcbu, cpu0->getHI());
+    ASSERT_EQUAL(0x00002a30u, cpu0->getLO());
 }
 
 void MIPS_MSUBU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x00400011, cpu0->getControlCoprocessor());   // mthi v0
+    memory->storeWord(0x0040000C, 0x00600013, cpu0->getControlCoprocessor());   // mtlo v1
+    memory->storeWord(0x00400010, 0x70430005, cpu0->getControlCoprocessor());   // msubu v0,v1
+    cpu0->stepCPU(5);
+    ASSERT_EQUAL(0xffffff03u, cpu0->getHI());
+    ASSERT_EQUAL(0x00002a30u, cpu0->getLO());
 }
 
 void MIPS_MUL() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x70432002, cpu0->getControlCoprocessor());   // mul a0,v0,v1
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0xffffd698u, cpu0->getRegister(4));
+    ASSERT_EQUAL(0xffffffffu, cpu0->getHI());
+    ASSERT_EQUAL(0xffffd698u, cpu0->getLO());
 }
 
 void MIPS_MULT() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x00430018, cpu0->getControlCoprocessor());   // mult v0,v1
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0xffffffffu, cpu0->getHI());
+    ASSERT_EQUAL(0xffffd698u, cpu0->getLO());
 }
 
 void MIPS_MULTU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x00430019, cpu0->getControlCoprocessor());   // multu v0,v1
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0x000000c7u, cpu0->getHI());
+    ASSERT_EQUAL(0xffffd698u, cpu0->getLO());
 }
 
 void MIPS_SEB() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x3c01dead, cpu0->getControlCoprocessor());   // lui v0,zero,0xDEAD
+    memory->storeWord(0x00400004, 0x3421beef, cpu0->getControlCoprocessor());   // ori v0,zero,0xBEEF
+    memory->storeWord(0x00400008, 0x7c021c20, cpu0->getControlCoprocessor());   // seb v1,v0
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0xfffffefu, cpu0->getRegister(3));
 }
 
 void MIPS_SEH() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x3c01dead, cpu0->getControlCoprocessor());   // lui v0,zero,0xDEAD
+    memory->storeWord(0x00400004, 0x3421beef, cpu0->getControlCoprocessor());   // ori v0,zero,0xBEEF
+    memory->storeWord(0x00400008, 0x7c021e20, cpu0->getControlCoprocessor());   // seh v1,v0
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0xffffbeefu, cpu0->getRegister(3));
 }
 
 void MIPS_SLT() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x0043202a, cpu0->getControlCoprocessor());   // slt a0,v0,v1
+    memory->storeWord(0x0040000C, 0x0062282a, cpu0->getControlCoprocessor());   // slt a1,v1,v0
+    cpu0->stepCPU(4);
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(4));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(5));
 }
 
 void MIPS_SLTI() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x2844ffcc, cpu0->getControlCoprocessor());   // slti a0,v0,-52
+    memory->storeWord(0x0040000C, 0x2845ffcd, cpu0->getControlCoprocessor());   // slti a1,v0,-51
+    memory->storeWord(0x00400010, 0x2846ffcb, cpu0->getControlCoprocessor());   // slti a2,v0,-53
+    memory->storeWord(0x00400014, 0x286700c7, cpu0->getControlCoprocessor());   // slti a3,v1,199
+    memory->storeWord(0x00400018, 0x286800c9, cpu0->getControlCoprocessor());   // slti t0,v1,201
+    memory->storeWord(0x0040001C, 0x286900c8, cpu0->getControlCoprocessor());   // slti t1,v1,200
+    cpu0->stepCPU(8);
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(4));
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(5));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(6));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(7));
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(8));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(9));
 }
 
 void MIPS_SLTIU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x2c44ffcc, cpu0->getControlCoprocessor());   // sltiu a0,v0,-52
+    memory->storeWord(0x0040000C, 0x2c45ffcd, cpu0->getControlCoprocessor());   // sltiu a1,v0,-51
+    memory->storeWord(0x00400010, 0x2c46ffcb, cpu0->getControlCoprocessor());   // sltiu a2,v0,-53
+    memory->storeWord(0x00400014, 0x2c6700c7, cpu0->getControlCoprocessor());   // sltiu a3,v1,199
+    memory->storeWord(0x00400018, 0x2c6800c9, cpu0->getControlCoprocessor());   // sltiu t0,v1,201
+    memory->storeWord(0x0040001C, 0x2c6900c8, cpu0->getControlCoprocessor());   // sltiu t1,v1,200
+    cpu0->stepCPU(8);
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(4));
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(5));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(6));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(7));
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(8));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(9));
 }
 
 void MIPS_SLTU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    memory->storeWord(0x00400000, 0x2002ffcb, cpu0->getControlCoprocessor());   // addi v0,zero,-53
+    memory->storeWord(0x00400004, 0x200300c8, cpu0->getControlCoprocessor());   // addi v1,zero,200
+    memory->storeWord(0x00400008, 0x0043202b, cpu0->getControlCoprocessor());   // sltu a0,v0,v1
+    memory->storeWord(0x0040000C, 0x0062282b, cpu0->getControlCoprocessor());   // sltu a1,v1,v0
+    cpu0->stepCPU(4);
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(4));
+    ASSERT_EQUAL(0x00000001u, cpu0->getRegister(5));
 }
 
+// TODO: Add overflow tests
 void MIPS_SUB() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00000000);
+    memory->storeWord(0x00000000, 0x200200c8, cpu0->getControlCoprocessor());   //  addi	v0,zero,200
+    memory->storeWord(0x00000004, 0x200301f4, cpu0->getControlCoprocessor());   //  addi	v1,zero,500
+    memory->storeWord(0x00000008, 0x2004ff38, cpu0->getControlCoprocessor());   //  addi	a0,zero,-200
+    memory->storeWord(0x0000000C, 0x2005fe0c, cpu0->getControlCoprocessor());   //  addi	a1,zero,-500
+    memory->storeWord(0x00000010, 0x00436022, cpu0->getControlCoprocessor());   //  sub	t4,v0,v1
+    memory->storeWord(0x00000014, 0x00456822, cpu0->getControlCoprocessor());   //  sub	t5,v0,a1
+    memory->storeWord(0x00000018, 0x00837022, cpu0->getControlCoprocessor());   //  sub	t6,a0,v1
+    memory->storeWord(0x0000001C, 0x00847822, cpu0->getControlCoprocessor());   //  sub	t7,a0,a1
+    cpu0->stepCPU(8);
+    ASSERT_EQUAL(0xfffffed4u, cpu0->getRegister(12));
+    ASSERT_EQUAL(0x000002bcu, cpu0->getRegister(13));
+    ASSERT_EQUAL(0xfffffd44u, cpu0->getRegister(14));
+    ASSERT_EQUAL(0x00000000u, cpu0->getRegister(15));
 }
 
+// TODO: Add overflow tests
 void MIPS_SUBU() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00000000);
+    memory->storeWord(0x00000000, 0x200200c8, cpu0->getControlCoprocessor());   // addi	v0,zero,200
+    memory->storeWord(0x00000004, 0x200301f4, cpu0->getControlCoprocessor());   // addi	v1,zero,500
+    memory->storeWord(0x00000008, 0x2004ff38, cpu0->getControlCoprocessor());   // addi	a0,zero,-200
+    memory->storeWord(0x0000000C, 0x2005fe0c, cpu0->getControlCoprocessor());   // addi	a1,zero,-500
+    memory->storeWord(0x00000010, 0x00434023, cpu0->getControlCoprocessor());   // subu	t0,v0,v1
+    memory->storeWord(0x00000014, 0x00454823, cpu0->getControlCoprocessor());   // subu	t1,v0,a1
+    memory->storeWord(0x00000018, 0x00835023, cpu0->getControlCoprocessor());   // subu	t2,a0,v1
+    memory->storeWord(0x0000001C, 0x00855823, cpu0->getControlCoprocessor());   // subu	t3,a0,a1
+    cpu0->stepCPU(8);
+    ASSERT_EQUAL(0xfffffed4u, cpu0->getRegister(8));
+    ASSERT_EQUAL(0x000002bcu, cpu0->getRegister(9));
+    ASSERT_EQUAL(0xfffffd44u, cpu0->getRegister(10));
+    ASSERT_EQUAL(0x0000012cu, cpu0->getRegister(11));
 }

@@ -14,8 +14,11 @@
 #include <cstdint>          // uint32_t
 #include <climits>          // CHAR_BIT
 #include <thread>           // thread::sleep
+#include <sstream>          // For debug printing
+#include "ConsoleUI.h"      // stdout access
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
+
 // MIPS CPU
 class CPU {
     private:
@@ -47,6 +50,9 @@ class CPU {
         #define DECODE_JIMM() jimm = IR & JIMMMASK
         #define DECODE_SEL() sel = IR & SELMASK
         #define DECODE_CO() (IR & COMASK)
+    
+        // Pointer to ConsoleUI for stdout debugging
+        ConsoleUI* consoleUI;
     
         // Pointer to the memory manager singleton
         PMMU* memory;
@@ -117,6 +123,7 @@ class CPU {
         void debugPrint();
     
     public:
+        CPU(ConsoleUI* conui, PMMU* memory);
         CPU(PMMU* memory);
     
         // Sets the program counter to an address

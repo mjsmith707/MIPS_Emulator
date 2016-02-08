@@ -25,18 +25,18 @@ class UART8250 : public MMIO_Device {
         #define UART_BASE 0xB40003F8
     
         // Port Registers
-        uint8_t THR;
-        uint8_t RBR;
-        uint8_t DLL;
-        uint8_t IER;
-        uint8_t DLH;
-        uint8_t IIR;
-        uint8_t FCR;
-        uint8_t LCR;
-        uint8_t MCR;
-        uint8_t LSR;
-        uint8_t MSR;
-        uint8_t SR;
+        volatile uint8_t THR;
+        volatile uint8_t RBR;
+        volatile uint8_t DLL;
+        volatile uint8_t IER;
+        volatile uint8_t DLH;
+        volatile uint8_t IIR;
+        volatile uint8_t FCR;
+        volatile uint8_t LCR;
+        volatile uint8_t MCR;
+        volatile uint8_t LSR;
+        volatile uint8_t MSR;
+        volatile uint8_t SR;
     
         // Test if Divisor Latch Access Bit is set
         inline bool DLABSet();

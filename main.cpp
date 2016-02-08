@@ -9,13 +9,15 @@
 #include <iostream>
 #include <iomanip>
 #include <thread>
-#include <curses.h>
+#include <sstream>
+
 #include "PMMU.h"
 #include "CPU.h"
 #include "UART8250.h"
+#include "ConsoleUI.h"
 #include "elfio/elfio.hpp"
 
-void loadFile(const char*, PMMU*, CPU*);
+void loadFile(ConsoleUI*, const char*, PMMU*, CPU*);
 void waitForInput(UART8250* uart);
 
 int main(int argc, const char * argv[]) {
@@ -28,93 +30,42 @@ int main(int argc, const char * argv[]) {
     // Roughly 4GB
     PMMU* memory = new PMMU(1000000);
     
-    // Create cpu
-    CPU* cpu0 = new CPU(memory);
-    
     // Create uart8250
     UART8250* uart8250 = new UART8250();
     
     // Attach uart to iommu
     memory->attachDevice(uart8250);
     
+    // Create ConsoleUI
+    ConsoleUI* consoleUI = new ConsoleUI(uart8250);
+    
+    // Create cpu
+    CPU* cpu0 = new CPU(consoleUI, memory);
+    
     // Load binary
-    loadFile(argv[1], memory, cpu0);
+    loadFile(consoleUI, argv[1], memory, cpu0);
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
-    //std::this_thread::sleep_for(std::chrono::seconds(60));
+    //std::this_thread::sleep_for(std::chrono::seconds(120));
     
     // Wait for console input
-    waitForInput(uart8250);
+    consoleUI->waitForInput();
     
     // Stop CPU
     cpu0->sendSignal(1);
     cpu0_thread.join();
+    
+    // Cleanup
+    delete consoleUI;
+    delete uart8250;
+    delete cpu0;
+    delete memory;
+    
     return 0;
 }
 
-// Handles keyboard input/output to the vm
-// Ncurses is like black magic
-// http://cc.byexamples.com/2007/04/08/non-blocking-user-input-in-loop-without-ncurses/
-void waitForInput(UART8250* uart) {
-    // Initialize ncurses
-    char ch = 0;
-    initscr();
-    timeout(0);
-    noecho();
-    scrollok(stdscr, TRUE);
-    idlok(stdscr, TRUE);
-    
-    // Blocking input/output loop
-    while (ch != '~') {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        
-        // Check if character is available from uart
-        if (uart->getChar(&ch)) {
-            // Ncurses hates newlines...
-            if (ch == '\n') {
-                // Check if we're at the bottom of the window
-                // If so then scroll otherwise move the cursor
-                // Just printing \n causes it to overwrite the line...
-                int x, y;
-                int xmax, ymax;
-                getyx(stdscr, y, x);
-                getmaxyx(stdscr, ymax, xmax);
-                if (y+1 == ymax) {
-                    scroll(stdscr);
-                }
-                else {
-                    wmove(stdscr, y+1, x);
-                }
-            }
-            else {
-                printw("%c", ch);
-                refresh();
-            }
-        }
-        
-        // Check if character is available from stdin
-        ch = getch();
-        if (ch > 0) {
-            // For whatever reason enter comes in as LF
-            // Send CR instead
-            if (ch == '\n') {
-                uart->sendChar(0xD);
-            }
-            else {
-                uart->sendChar(ch);
-            }
-        }
-        else {
-            ch = 0;
-        }
-    }
-    
-    // Cleanup ncurses
-    endwin();
-}
-
-void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
+void loadFile(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu) {
     ELFIO::elfio reader;
     if (!reader.load(filename)) {
         std::cerr << "Failed to load file: " << filename << std::endl;
@@ -122,28 +73,29 @@ void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
     }
     
     // Print ELF file properties
-    std::cout << "ELF file class    : ";
+    std::stringstream ss;
+    ss << "ELF file class    : ";
     if ( reader.get_class() == ELFCLASS32 )
-        std::cout << "ELF32" << std::endl;
+        ss << "ELF32" << std::endl;
     else
-        std::cout << "ELF64" << std::endl;
+        ss << "ELF64" << std::endl;
     
-    std::cout << "ELF file encoding : ";
+    ss << "ELF file encoding : ";
     if ( reader.get_encoding() == ELFDATA2LSB )
-        std::cout << "Little endian" << std::endl;
+        ss << "Little endian" << std::endl;
     else
-        std::cout << "Big endian" << std::endl;
+        ss << "Big endian" << std::endl;
     
     // Set Program Counter to ELF Entry Point
-    std::cout << std::hex << "ELF Entry Point: 0x" << reader.get_entry() << std::endl;
+    ss << std::hex << "ELF Entry Point: 0x" << reader.get_entry() << std::endl;
     cpu->setPC((uint32_t)reader.get_entry());
     
     // Print ELF file sections info
     ELFIO::Elf_Half sec_num = reader.sections.size();
-    std::cout << "Number of sections: " << sec_num << std::endl;
+    ss << "Number of sections: " << sec_num << std::endl;
     for ( int i = 0; i < sec_num; ++i ) {
         ELFIO::section* psec = reader.sections[i];
-        std::cout << "  [" << i << "] "
+        ss << "  [" << i << "] "
         << psec->get_name()
         << "\t"
         << psec->get_size()
@@ -154,10 +106,10 @@ void loadFile(const char* filename, PMMU* memory, CPU* cpu) {
     
     // Print ELF file segments info
     ELFIO::Elf_Half seg_num = reader.segments.size();
-    std::cout << "Number of segments: " << seg_num << std::endl;
+    ss << "Number of segments: " << seg_num << std::endl;
     for ( int i = 0; i < seg_num; ++i ) {
         const ELFIO::segment* pseg = reader.segments[i];
-        std::cout << "  [" << i << "] 0x" << std::hex
+        ss << "  [" << i << "] 0x" << std::hex
         << pseg->get_flags()
         << "\t0x"
         << pseg->get_virtual_address()
