@@ -230,8 +230,6 @@ void MIPS_MUL() {
     memory->storeWord(0x00400008, 0x70432002, cpu0->getControlCoprocessor());   // mul a0,v0,v1
     cpu0->stepCPU(3);
     ASSERT_EQUAL(0xffffd698u, cpu0->getRegister(4));
-    ASSERT_EQUAL(0xffffffffu, cpu0->getHI());
-    ASSERT_EQUAL(0xffffd698u, cpu0->getLO());
 }
 
 void MIPS_MULT() {
@@ -259,18 +257,18 @@ void MIPS_MULTU() {
 void MIPS_SEB() {
     reset();
     cpu0->setPC(0x00400000);
-    memory->storeWord(0x00400000, 0x3c01dead, cpu0->getControlCoprocessor());   // lui v0,zero,0xDEAD
-    memory->storeWord(0x00400004, 0x3421beef, cpu0->getControlCoprocessor());   // ori v0,zero,0xBEEF
+    memory->storeWord(0x00400000, 0x3c02dead, cpu0->getControlCoprocessor());   // lui v0,zero,0xDEAD
+    memory->storeWord(0x00400004, 0x3442beef, cpu0->getControlCoprocessor());   // ori v0,zero,0xBEEF
     memory->storeWord(0x00400008, 0x7c021c20, cpu0->getControlCoprocessor());   // seb v1,v0
     cpu0->stepCPU(3);
-    ASSERT_EQUAL(0xfffffefu, cpu0->getRegister(3));
+    ASSERT_EQUAL(0xffffffefu, cpu0->getRegister(3));
 }
 
 void MIPS_SEH() {
     reset();
     cpu0->setPC(0x00400000);
-    memory->storeWord(0x00400000, 0x3c01dead, cpu0->getControlCoprocessor());   // lui v0,zero,0xDEAD
-    memory->storeWord(0x00400004, 0x3421beef, cpu0->getControlCoprocessor());   // ori v0,zero,0xBEEF
+    memory->storeWord(0x00400000, 0x3c02dead, cpu0->getControlCoprocessor());   // lui v0,zero,0xDEAD
+    memory->storeWord(0x00400004, 0x3442beef, cpu0->getControlCoprocessor());   // ori v0,zero,0xBEEF
     memory->storeWord(0x00400008, 0x7c021e20, cpu0->getControlCoprocessor());   // seh v1,v0
     cpu0->stepCPU(3);
     ASSERT_EQUAL(0xffffbeefu, cpu0->getRegister(3));

@@ -78,6 +78,15 @@ class PMMU {
                 else {
                     // Allocate a new physical frame
                     frameTable[paddr] = new uint8_t[pageSize];
+                    #ifdef TEST_PROJECT
+                        // Zero memory for testing
+                        // Disabled for performance reasons during
+                        // normal use as it is not guaranteed
+                        // to be all zeroes
+                        for (int i=0; i<pageSize; i++) {
+                            frameTable[paddr][i] = 0;
+                        }
+                    #endif
                     frameTableSize++;
                     frame = frameTable[paddr];
                 }

@@ -86,9 +86,15 @@ const char* CPU::registerNames[32] {
 // Parameterized Constructor
 // Attaches the CPU to other devices
 CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0) {
+    for (int i=0; i<32; i++) {
+        registers[i] = 0;
+    }
 }
 
 CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0) {
+    for (int i=0; i<32; i++) {
+        registers[i] = 0;
+    }
 }
 
 // Sets the initial program counter for the CPU
@@ -162,6 +168,45 @@ uint32_t CPU::getJimm() {
 uint8_t CPU::getSel() {
     return this->sel;
 }
+void CPU::setIR(uint32_t val) {
+    this->IR = val;
+}
+void CPU::setHI(uint32_t val) {
+    this->HI = val;
+}
+void CPU::setLO(uint32_t val) {
+    this->LO = val;
+}
+void CPU::setRegister(uint8_t num, uint32_t val) {
+    this->registers[num] = val;
+}
+void CPU::setOpcode(uint8_t val) {
+    this->opcode = val;
+}
+void CPU::setRS(uint8_t val) {
+    this->rs = val;
+}
+void CPU::setRT(uint8_t val) {
+    this->rt = val;
+}
+void CPU::setRD(uint8_t val) {
+    this->rd = val;
+}
+void CPU::setShamt(uint8_t val) {
+    this->shamt = val;
+}
+void CPU::setFunct(uint8_t val) {
+    this->funct = val;
+}
+void CPU::setImm(uint16_t val) {
+    this->imm = val;
+}
+void CPU::setJimm(uint32_t val) {
+    this->jimm = val;
+}
+void CPU::setSel(uint8_t val) {
+    this->sel = val;
+}
 #endif
 
 // Prints information about the cpu's execution per cycle
@@ -226,8 +271,6 @@ void CPU::debugPrint() {
 }
 
 // Fetches the next instruction into the program counter and instruction register
-// Signal should be marked volatile but w/e its a temporary deal anyway and clang doesnt
-// appear to save it in register
 #define fetch()  \
     cycleCounter++; \
 \
@@ -783,8 +826,8 @@ void CPU::dispatchLoop() {
     SLTIU:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        if (registers[rs] < imm) {
+        DECODE_IMMSE();
+        if (registers[rs] < (uint16_t)immse) {
             registers[rt] = 1;
         }
         else {
@@ -922,6 +965,8 @@ void CPU::dispatchLoop() {
         tempi32 += registers[rs];
         if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
             tempi32 = tempu8;
+            tempi32 <<= 24;
+            tempi32 >>= 24;
             registers[rt] = tempi32;
             DISPATCH();
         }
@@ -937,6 +982,9 @@ void CPU::dispatchLoop() {
         tempi32 = imm;
         tempi32 += registers[rs];
         if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
+            tempi32 = tempu16;
+            tempi32 <<= 16;
+            tempi32 >>= 16;
             registers[rt] = tempi32;
             DISPATCH();
         }
@@ -951,7 +999,7 @@ void CPU::dispatchLoop() {
         DECODE_IMM();
         tempi32 = registers[rs] + (int16_t)imm;
         if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
-            tempu32 |= tempu8;
+            tempu32 = tempu8;
             tempu32 <<= 8;
             if (memory->readByte(tempi32+1, &tempu8, &cop0_processor)) {
                 tempu32 |= tempu8;
@@ -1070,6 +1118,8 @@ void CPU::dispatchLoop() {
     // 0x2A Store Word Left
     // FIXME: These stores need to be atomic
     // I.e. both succeed or fail together
+    // FIXME: pmmu will likely need a separate function for these
+    // reason: needs unaligned access across page boundaries
     SWL:
         DECODE_RS();
         DECODE_RT();
@@ -1211,7 +1261,7 @@ void CPU::dispatchLoop() {
             registers[rd] = registers[rt] >> shamt;
         }
         else {
-            // ROTR Rotate Word Right
+            // ROTR: Rotate Word Right
             // https://en.wikipedia.org/wiki/Circular_shift
             tempu32 = (CHAR_BIT * sizeof(registers[rt]) - 1);
             tempu32_2 = shamt;
@@ -1249,11 +1299,11 @@ void CPU::dispatchLoop() {
             registers[rd] = registers[rt] >> registers[rs];
         }
         else {
-            // ROTRV
+            // ROTRV:
             // ROTR Rotate Word Right Variable
             // https://en.wikipedia.org/wiki/Circular_shift
             tempu32 = (CHAR_BIT * sizeof(registers[rt]) - 1);
-            tempu32_2 = registers[rs] & 0x00000005;
+            tempu32_2 = registers[rs] & 0x0000001F;
             tempu32_2 &= tempu32;
             registers[rd] = (registers[rt] >> tempu32_2) | (registers[rt] << ((-tempu32_2) & tempu32));
         }
@@ -1357,18 +1407,29 @@ void CPU::dispatchLoop() {
     MULT:
         DECODE_RS();
         DECODE_RT();
-        tempu64 = (int32_t)registers[rs] * (int32_t)registers[rt];
-        HI = tempu64 >> 32;
-        LO = tempu64 & 0x00000000FFFFFFFF;
+        tempi64 = registers[rs];
+        tempi64_2 = registers[rt];
+        // Sign extend
+        tempi64 <<= 32;
+        tempi64 >>= 32;
+        tempi64_2 <<= 32;
+        tempi64_2 >>= 32;
+        // Mult
+        tempi64 = tempi64 * tempi64_2;
+        HI = tempi64 >> 32;
+        LO = tempi64 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x19 Multiply Unsigned Word
     MULTU:
         DECODE_RS();
         DECODE_RT();
-        tempu64 = registers[rs] * registers[rt];
-        HI = tempu64 >> 32;
-        LO = tempu64 & 0x00000000FFFFFFFF;
+        tempi64 = registers[rs];
+        tempi64_2 = registers[rt];
+        // Mult
+        tempi64 = tempi64 * tempi64_2;
+        HI = tempi64 >> 32;
+        LO = tempi64 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x1A Divide Word
@@ -1552,26 +1613,41 @@ void CPU::dispatchLoop() {
     MADD:
         DECODE_RS();
         DECODE_RT();
-        tempu64 = HI;
-        tempu64 <<= 32;
-        tempu64 |= LO;
-        // FIXME: This addition is supposed to be signed? Manual unclear..
-        tempi64 = tempu64;
-        tempi64 += (int64_t)registers[rs] * (int64_t)registers[rt];
-        HI = tempi64 >> 32;
-        LO = tempi64 & 0x00000000FFFFFFFF;
+        tempi64 = registers[rs];
+        tempi64_2 = registers[rt];
+        // Sign extend
+        tempi64 <<= 32;
+        tempi64 >>= 32;
+        tempi64_2 <<= 32;
+        tempi64_2 >>= 32;
+        // Mult
+        tempi64 = tempi64 * tempi64_2;
+        // Load HI/LO
+        tempi64_2 = HI;
+        tempi64_2 <<= 32;
+        tempi64_2 |= LO;
+        // Add
+        tempi64_2 += tempi64;
+        HI = tempi64_2 >> 32;
+        LO = tempi64_2 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x01 Multiply and Add Unsigned Word to Hi,Lo
     MADDU:
         DECODE_RS();
         DECODE_RT();
-        tempu64 = HI;
-        tempu64 <<= 32;
-        tempu64 |= LO;
-        tempu64 += registers[rs] * registers[rt];
-        HI = tempu64 >> 32;
-        LO = tempu64 & 0x00000000FFFFFFFF;
+        tempi64 = registers[rs];
+        tempi64_2 = registers[rt];
+        // Mult
+        tempi64 = tempi64 * tempi64_2;
+        // Load HI/LO
+        tempi64_2 = HI;
+        tempi64_2 <<= 32;
+        tempi64_2 |= LO;
+        // Add
+        tempi64_2 += tempi64;
+        HI = tempi64_2 >> 32;
+        LO = tempi64_2 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x02 Multiply Word to GPR
@@ -1587,27 +1663,41 @@ void CPU::dispatchLoop() {
     MSUB:
         DECODE_RS();
         DECODE_RT();
-        tempi32 = (int32_t)registers[rs] * (int32_t)registers[rt];
-        tempu64 = HI;
-        tempu64 <<= 32;
-        tempu64 |= LO;
-        // FIXME: This subtraction is supposed to be signed? Manual unclear..
-        tempu64 -= tempi32;
-        HI = tempu64 >> 32;
-        LO = tempu64 & 0x00000000FFFFFFFF;
+        tempi64 = registers[rs];
+        tempi64_2 = registers[rt];
+        // Sign extend
+        tempi64 <<= 32;
+        tempi64 >>= 32;
+        tempi64_2 <<= 32;
+        tempi64_2 >>= 32;
+        // Mult
+        tempi64 = tempi64 * tempi64_2;
+        // Load HI/LO
+        tempi64_2 = HI;
+        tempi64_2 <<= 32;
+        tempi64_2 |= LO;
+        // Sub
+        tempi64_2 -= tempi64;
+        HI = tempi64_2 >> 32;
+        LO = tempi64_2 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x05 Multiply and Subtract Unsigned Word to Hi,Lo
     MSUBU:
         DECODE_RS();
         DECODE_RT();
-        tempu32 = registers[rs] * registers[rt];
-        tempu64 = HI;
-        tempu64 <<= 32;
-        tempu64 |= LO;
-        tempu64 -= tempu32;
-        HI = tempu64 >> 32;
-        LO = tempu64 & 0x00000000FFFFFFFF;
+        tempi64 = registers[rs];
+        tempi64_2 = registers[rt];
+        // Mult
+        tempi64 = tempi64 * tempi64_2;
+        // Load HI/LO
+        tempi64_2 = HI;
+        tempi64_2 <<= 32;
+        tempi64_2 |= LO;
+        // Sub
+        tempi64_2 -= tempi64;
+        HI = tempi64_2 >> 32;
+        LO = tempi64_2 & 0x00000000FFFFFFFF;
         DISPATCH();
     
     // 0x20 Count Leading Zeroes in Word
@@ -1712,15 +1802,17 @@ void CPU::dispatchLoop() {
             }
             // SEB: Sign Extend Byte
             case 0x10: {
-                tempu8 = registers[rt] & 0x000000FF;
-                tempi32 = tempu8;
+                tempi32 = registers[rt] & 0x000000FF;
+                tempi32 <<= 24;
+                tempi32 >>= 24;
                 registers[rd] = tempi32;
                 DISPATCH();
             }
             // SEH: Sign Extend Halfword
             case 0x18: {
-                tempu16 = registers[rt] & 0x0000FFFF;
-                tempi32 = tempu16;
+                tempi32 = registers[rt] & 0x0000FFFF;
+                tempi32 <<= 16;
+                tempi32 >>= 16;
                 registers[rd] = tempi32;
                 DISPATCH();
             }
