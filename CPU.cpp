@@ -85,13 +85,13 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0) {
+CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
 
-CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0) {
+CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
@@ -162,6 +162,9 @@ uint8_t CPU::getFunct() {
 uint16_t CPU::getImm() {
     return this->imm;
 }
+int32_t CPU::getImmSE() {
+    return this->immse;
+}
 uint32_t CPU::getJimm() {
     return this->jimm;
 }
@@ -201,6 +204,9 @@ void CPU::setFunct(uint8_t val) {
 void CPU::setImm(uint16_t val) {
     this->imm = val;
 }
+void CPU::setImmSE(int32_t val) {
+    this->immse = val;
+}
 void CPU::setJimm(uint32_t val) {
     this->jimm = val;
 }
@@ -224,7 +230,8 @@ void CPU::debugPrint() {
     << "rd = " << (uint16_t)rd << std::endl
     << "shamt = " << (int16_t)shamt << std::endl
     << "funct = " << (uint16_t)funct << std::endl
-    << "imm = " << (int16_t)imm << std::endl
+    << "imm = " << imm << std::endl
+    << "immse = " << immse << std::endl
     << "jimm = 0x" << std::hex << (int)jimm << std::endl
     << "sel = " << std::dec << (int)sel << std::endl
     << "=== END Decode ===" << std::endl;
@@ -266,7 +273,8 @@ void CPU::debugPrint() {
     }
     ss << "=== END Disassembly ===" << std::endl << std::endl;
     if (consoleUI != nullptr) {
-        consoleUI->sendConsoleMsg(ss.str());
+        //consoleUI->sendConsoleMsg(ss.str());
+        std::cout << ss.str() << std::endl;
     }
 }
 
@@ -315,6 +323,7 @@ __attribute__((always_inline)) void CPU::decodeAll() {
     DECODE_SHAMT();
     DECODE_FUNCT();
     DECODE_IMM();
+    DECODE_IMMSE();
     DECODE_JIMM();
     DECODE_SEL();
 }
@@ -695,7 +704,7 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x1E
         &&INVALID_INSTRUCTION,          // 0x1F
     };
-
+    
     // Dispatch macro
     #ifdef TEST_PROJECT
         #define DISPATCH() return;
@@ -704,6 +713,9 @@ void CPU::dispatchLoop() {
     #endif
     
     // Begin Dispatch Loop
+dispatchStart:
+    try {
+        
     #ifdef TEST_PROJECT
         fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
     #else
@@ -791,9 +803,9 @@ void CPU::dispatchLoop() {
     ADDI:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
+        DECODE_IMMSE();
         tempi32 = 0;
-        if (__builtin_sadd_overflow(registers[rs], (int16_t)imm, &tempi32)) {
+        if (__builtin_sadd_overflow(registers[rs], immse, &tempi32)) {
             // FIXME: Overflow trigger exception
         }
         else {
@@ -805,16 +817,16 @@ void CPU::dispatchLoop() {
     ADDIU:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        registers[rt] = registers[rs] + (int16_t)imm;
+        DECODE_IMMSE();
+        registers[rt] = registers[rs] + immse;
         DISPATCH();
     
     // 0x0A Set on Less Than Immediate
     SLTI:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        if ((int32_t)registers[rs] < (int16_t)imm) {
+        DECODE_IMMSE();
+        if ((int32_t)registers[rs] < immse) {
             registers[rt] = 1;
         }
         else {
@@ -827,7 +839,7 @@ void CPU::dispatchLoop() {
         DECODE_RS();
         DECODE_RT();
         DECODE_IMMSE();
-        if (registers[rs] < (uint16_t)immse) {
+        if (registers[rs] < (uint32_t)immse) {
             registers[rt] = 1;
         }
         else {
@@ -960,8 +972,8 @@ void CPU::dispatchLoop() {
     LB:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
             tempi32 = tempu8;
@@ -978,8 +990,8 @@ void CPU::dispatchLoop() {
     LH:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
             tempi32 = tempu16;
@@ -996,8 +1008,8 @@ void CPU::dispatchLoop() {
     LWL:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = registers[rs] + (int16_t)imm;
+        DECODE_IMMSE();
+        tempi32 = registers[rs] + immse;
         if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
             tempu32 = tempu8;
             tempu32 <<= 8;
@@ -1020,8 +1032,8 @@ void CPU::dispatchLoop() {
     LW:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->readWord(tempi32, &tempu32, &cop0_processor)) {
             tempi32 = tempu32;
@@ -1036,8 +1048,8 @@ void CPU::dispatchLoop() {
     LBU:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
             registers[rt] = tempu8;
@@ -1051,8 +1063,8 @@ void CPU::dispatchLoop() {
     LHU:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
             registers[rt] = tempu16;
@@ -1066,8 +1078,8 @@ void CPU::dispatchLoop() {
     LWR:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = registers[rs] + (int16_t)imm;
+        DECODE_IMMSE();
+        tempi32 = registers[rs] + immse;
         if (memory->readByte(tempi32-1, &tempu8, &cop0_processor)) {
             tempu32 = tempu8;
             tempu32 <<= 8;
@@ -1091,8 +1103,8 @@ void CPU::dispatchLoop() {
     SB:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->storeByte(tempi32, registers[rt], &cop0_processor)) {
             DISPATCH();
@@ -1105,8 +1117,8 @@ void CPU::dispatchLoop() {
     SH:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         if (memory->storeHalf(tempi32, registers[rt], &cop0_processor)) {
             DISPATCH();
@@ -1123,8 +1135,8 @@ void CPU::dispatchLoop() {
     SWL:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = registers[rs] + (int16_t)imm;
+        DECODE_IMMSE();
+        tempi32 = registers[rs] + immse;
         if ((memory->storeByte(tempi32, (registers[rt] & 0xFF000000) >> 24, &cop0_processor))
             && (memory->storeByte(tempi32+1, (registers[rt] & 0x00FF0000) >> 16, &cop0_processor))) {
             DISPATCH();
@@ -1137,8 +1149,8 @@ void CPU::dispatchLoop() {
     SW:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = imm;
+        DECODE_IMMSE();
+        tempi32 = immse;
         tempi32 += registers[rs];
         memory->storeWord(tempi32, registers[rt], &cop0_processor);
         DISPATCH();
@@ -1152,8 +1164,8 @@ void CPU::dispatchLoop() {
     SWR:
         DECODE_RS();
         DECODE_RT();
-        DECODE_IMM();
-        tempi32 = registers[rs] + (int16_t)imm;
+        DECODE_IMMSE();
+        tempi32 = registers[rs] + immse;
         if ((memory->storeByte(tempi32-1, (registers[rt] & 0x0000FF00) >> 8, &cop0_processor))
             && (memory->storeByte(tempi32, registers[rt] & 0x000000FF, &cop0_processor))) {
             DISPATCH();
@@ -2016,5 +2028,25 @@ void CPU::dispatchLoop() {
             debugPrint();
         }
         return;
+        
+    }
+    // Multi-catch for in processor interrupts
+    // exceptions and simulation errors
+    catch (std::exception& e) {
+    #ifdef TEST_PROJECT
+        exceptRestartLoop = false;
+    #else
+        exceptRestartLoop = true;
+    #endif
+    }
+    
+    // ISO C++ forbids gotos into a try-catch block
+    // however gotos out of a try-catch and within a try
+    // are valid so for catch handlers that restart
+    // execution (i.e. not simulation errors)
+    // this restarts dispatching
+    if (exceptRestartLoop) {
+        goto dispatchStart;
+    }
 }
 

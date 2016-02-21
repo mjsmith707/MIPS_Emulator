@@ -47,7 +47,7 @@ class CPU {
         #define DECODE_SHAMT() shamt = (IR & SHAMTMASK) >> SHAMTSHIFT
         #define DECODE_FUNCT() funct = IR & FUNCTMASK
         #define DECODE_IMM() imm = IR & IMMMASK
-        #define DECODE_IMMSE() DECODE_IMM(); tempi32 = imm; tempi32 <<= 16; tempi32 >>= 16; immse = tempi32
+        #define DECODE_IMMSE() immse = IR & IMMMASK; immse <<= 16; immse >>= 16;
         #define DECODE_JIMM() jimm = IR & JIMMMASK
         #define DECODE_SEL() sel = IR & SELMASK
         #define DECODE_CO() (IR & COMASK)
@@ -91,7 +91,7 @@ class CPU {
         uint8_t shamt;
         uint8_t funct;
         uint16_t imm;
-        int16_t immse;
+        int32_t immse;
         uint32_t jimm;
         uint8_t sel;
     
@@ -107,6 +107,8 @@ class CPU {
         int32_t tempi32;
         int64_t tempi64;
         int64_t tempi64_2;
+        // Controls behavior of try-catch exception mechanism
+        bool exceptRestartLoop;
     
         // String tables for readable instruction decoding
         static const char* opcodeNames[64];
@@ -155,6 +157,7 @@ class CPU {
         uint8_t getShamt();
         uint8_t getFunct();
         uint16_t getImm();
+        int32_t getImmSE();
         uint32_t getJimm();
         uint8_t getSel();
         // Just because these exist doesn't mean they should be used
@@ -169,6 +172,7 @@ class CPU {
         void setShamt(uint8_t);
         void setFunct(uint8_t);
         void setImm(uint16_t);
+        void setImmSE(int32_t);
         void setJimm(uint32_t);
         void setSel(uint8_t);
     #endif

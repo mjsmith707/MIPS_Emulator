@@ -1,0 +1,2 @@
+without try-catch 3734534719 inst/min 62242245 inst/sec
+with try-catch    3744070830 inst/min 62401181 inst/sec

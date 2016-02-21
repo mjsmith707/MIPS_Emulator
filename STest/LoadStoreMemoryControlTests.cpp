@@ -155,7 +155,7 @@ void MIPS_LWL() {
     // Hummm.....
     // Manual says 0xdead
     // base = 4($sp)
-    // lwl 0(base)  is byte at 4(de) and 5(ad)
+    // lwl 0(base) is byte at 4(de) and 5(ad)
     // lwr 0(base) is byte at 3(00 - testing) and 4(de)
     ASSERT_EQUAL(0xdead0000u, cpu0->getRegister(9));
     uint32_t word = 0;

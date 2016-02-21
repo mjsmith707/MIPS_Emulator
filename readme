@@ -1,0 +1,64 @@
+CS390 MIPS32 Release 2 Emulator
+
+- Currently an interpreter for a big-endian mips32 release 2 processor that
+implements most arithmetic, memory, shifting, etc. instructions, with plans
+to add coprocessor0 support as well as floating point (coprocessor1).
+
+Compiling Instructions:
+	Run 'make' to build mips.x which can then be used to load
+		mips32r2 big-endian elf binaries. E.x. ./mips.x mmon.elf
+	Run 'make test' to build mips_tests.x which executes various
+		instruction unit tests.
+
+- Overview of files:
+	main.cpp - Handles machine startup/shutdown, elf file loading.
+	ConsoleUI.cpp/h - Handles stdin/stdout and acts as a bridge
+		between the terminal and emulated UART8250.
+	CPU.cpp/h - Contains the interpreter core loop as well as most
+		instruction implementations.
+	PMMU.cpp/h - Contains the memory management unit emulation class
+		which handles read/write, address translation etc.
+	Coprocessor0.cpp/h - Contains the control coprocessor registers
+		as well as functions to operate on them.
+	COP0Register.cpp/h - Implements coprocessor0 specific register
+		behavior including per bit software/hardware read/write 
+		locking.
+	MMIO_Device.h - Abstract interface for memory-mapped IO devices
+		in order to attach to the MMU.
+	SharedQueue.h - Template locking std::queue, primarily for use in
+		ConsoleUI to receive messages for logging purposes.
+	UART8250.cpp/h - Partial (no interrupts) implementation of a
+		UART8250 serial port using memory-mapped IO.
+		See: ./mips.x mmon.elf for a working example
+	STest:
+		testmain.cpp - Adds tests to STest interface and starts
+			STest.
+		STest.cpp/h - Contains simple unit testing framework as
+			well as template assertion functions.
+		MIPS_Tests_Common.cpp/h - Contains class objects and
+			functions common to all instruction tests.
+		ArithmeticTests.cpp/h - Contains tests for instructions
+			from Table 3.1 (pg 34) MIPS32R2 Volume II.
+		LogicalTests.cpp/h - Contains tests for instructions from
+			Table 3.5 (pg 36) MIPS32R2 Volume II.
+		BranchAndJumpTests.cpp/h - Contains tests for instructions
+			from Table 3.2 (pg 35) MIPS32R2 Volume II.
+		InstructionControlInstructionTests.cpp/h - Contains tests
+			for instructions from Table 3.3 (pg 36) MIPS32R2 
+			Volume II.
+		LoadStoreMemoryControlTests.cpp/h - Contains tests for
+			instructions from Table 3.4 (pg 36) MIPS32R2
+			Volume II.
+		InsertExtractTests.cpp/h - Contains tests for instructions
+			from Table 3.6 (pg 37) MIPS32R2 Volume II.
+		MoveTests.cpp/h - Contains tests for instructions from
+			Table 3.7 (pg 37) MIPS32R2 Volume II.
+		ShiftTests.cpp/h - Contains tests for instructions from
+			Table 3.8 (pg 37) MIPS32R2 Volume II.
+		TrapTests.cpp/h - Contains tests for instructions from
+			Table 3.9 (pg 38) MIPS32R2 Volume II.
+		ObsoleteBranchTests.cpp/h - Contains tests for instructions
+			from Table 3.10 (pg 38) MIPS32R2 Volume II.
+	Misc:
+		Contains some miscellaneous things such as benchmark
+			results.
