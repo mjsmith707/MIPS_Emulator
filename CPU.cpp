@@ -292,21 +292,10 @@ void CPU::debugPrint() {
         branch = false; \
         branchDelay = false; \
         PC = branchAddr; \
-        if (memory->readWord(PC, &IR, &cop0_processor)) { \
-            PC += 4; \
-        } \
-        else { \
-            goto HANDLE_TRAP; \
-        } \
     } \
-    else { \
-        if (memory->readWord(PC, &IR, &cop0_processor)) { \
-            PC += 4; \
-        } \
-        else { \
-            goto HANDLE_TRAP; \
-        } \
-    } \
+\
+    memory->readWord(PC, &IR, &cop0_processor); \
+    PC += 4; \
 \
     if (branchDelay) { \
         branch = true; \
@@ -975,16 +964,13 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
-            tempi32 = tempu8;
-            tempi32 <<= 24;
-            tempi32 >>= 24;
-            registers[rt] = tempi32;
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readByte(tempi32, &tempu8, &cop0_processor);
+        tempi32 = tempu8;
+        tempi32 <<= 24;
+        tempi32 >>= 24;
+        registers[rt] = tempi32;
+        DISPATCH();
+
     
     // 0x21 Load Half
     LH:
@@ -993,16 +979,12 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
-            tempi32 = tempu16;
-            tempi32 <<= 16;
-            tempi32 >>= 16;
-            registers[rt] = tempi32;
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readHalf(tempi32, &tempu16, &cop0_processor);
+        tempi32 = tempu16;
+        tempi32 <<= 16;
+        tempi32 >>= 16;
+        registers[rt] = tempi32;
+        DISPATCH();
     
     // 0x22 Load Word Left
     LWL:
@@ -1010,23 +992,11 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
-            tempu32 = tempu8;
-            tempu32 <<= 8;
-            if (memory->readByte(tempi32+1, &tempu8, &cop0_processor)) {
-                tempu32 |= tempu8;
-                tempu32 <<= 16;
-                registers[rt] &= 0x0000FFFF;
-                registers[rt] |= tempu32;
-                DISPATCH();
-            }
-            else {
-                goto HANDLE_TRAP;
-            }
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readHalfUnaligned(tempi32, tempi32+1, &tempu16, &cop0_processor);
+        tempu32 = tempu16 << 16;
+        registers[rt] &= 0x0000FFFF;
+        registers[rt] |= tempu32;
+        DISPATCH();
     
     // 0x23 Load Word
     LW:
@@ -1035,14 +1005,10 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->readWord(tempi32, &tempu32, &cop0_processor)) {
-            tempi32 = tempu32;
-            registers[rt] = tempi32;
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readWord(tempi32, &tempu32, &cop0_processor);
+        tempi32 = tempu32;
+        registers[rt] = tempi32;
+        DISPATCH();
     
     // 0x24 Load Byte Unsigned
     LBU:
@@ -1051,13 +1017,9 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
-            registers[rt] = tempu8;
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readByte(tempi32, &tempu8, &cop0_processor);
+        registers[rt] = tempu8;
+        DISPATCH();
     
     // 0x25 Load Halfword Unsigned
     LHU:
@@ -1066,13 +1028,9 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->readHalf(tempi32, &tempu16, &cop0_processor)) {
-            registers[rt] = tempu16;
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readHalf(tempi32, &tempu16, &cop0_processor);
+        registers[rt] = tempu16;
+        DISPATCH();
     
     // 0x26 Load Word Right
     LWR:
@@ -1080,22 +1038,11 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        if (memory->readByte(tempi32-1, &tempu8, &cop0_processor)) {
-            tempu32 = tempu8;
-            tempu32 <<= 8;
-            if (memory->readByte(tempi32, &tempu8, &cop0_processor)) {
-                tempu32 |= tempu8;
-                registers[rt] &= 0xFFFF0000;
-                registers[rt] |= tempu32;
-                DISPATCH();
-            }
-            else {
-                goto HANDLE_TRAP;
-            }
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->readHalfUnaligned(tempi32-1, tempi32, &tempu16, &cop0_processor);
+        tempu32 = tempu16;
+        registers[rt] &= 0xFFFF0000;
+        registers[rt] |= tempu32;
+        DISPATCH();
 
     // 0x27
     
@@ -1106,12 +1053,8 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->storeByte(tempi32, registers[rt], &cop0_processor)) {
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->storeByte(tempi32, registers[rt], &cop0_processor);
+        DISPATCH();
     
     // 0x29 Store Halfword
     SH:
@@ -1120,30 +1063,17 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (memory->storeHalf(tempi32, registers[rt], &cop0_processor)) {
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->storeHalf(tempi32, registers[rt], &cop0_processor);
+        DISPATCH();
     
     // 0x2A Store Word Left
-    // FIXME: These stores need to be atomic
-    // I.e. both succeed or fail together
-    // FIXME: pmmu will likely need a separate function for these
-    // reason: needs unaligned access across page boundaries
     SWL:
         DECODE_RS();
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        if ((memory->storeByte(tempi32, (registers[rt] & 0xFF000000) >> 24, &cop0_processor))
-            && (memory->storeByte(tempi32+1, (registers[rt] & 0x00FF0000) >> 16, &cop0_processor))) {
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->storeHalfUnaligned(tempi32, tempi32+1, (registers[rt] & 0xFFFF0000) >> 16, &cop0_processor);
+        DISPATCH();
     
     // 0x2B Store Word
     SW:
@@ -1160,19 +1090,13 @@ dispatchStart:
     // 0x2D
     
     // 0x2E Store Word Right
-    // FIXME: Needs to be atomic (see SWL)
     SWR:
         DECODE_RS();
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        if ((memory->storeByte(tempi32-1, (registers[rt] & 0x0000FF00) >> 8, &cop0_processor))
-            && (memory->storeByte(tempi32, registers[rt] & 0x000000FF, &cop0_processor))) {
-            DISPATCH();
-        }
-        else {
-            goto HANDLE_TRAP;
-        }
+        memory->storeHalfUnaligned(tempi32-1, tempi32, registers[rt] & 0x0000FFFF, &cop0_processor);
+        DISPATCH();
     
     // 0x2F Cache
     CACHE:
@@ -1753,7 +1677,6 @@ dispatchStart:
  *  === SPECIAL3 Instructions ===
  */
     // 0x00 Extract Bit Field
-    // FIXME: Definitely need to verify correctness here
     EXT:
         DECODE_RS();
         DECODE_RT();
@@ -1761,21 +1684,21 @@ dispatchStart:
         DECODE_SHAMT();
         // lsb = shamt
         // msbd = rd
-        if ((shamt + rd) > 31 ) {
+        tempu16 = shamt + rd;
+        if (tempu16 > 31) {
             // Unpredictable
         }
         else {
             tempu32 = 0;
-            tempu16 = 0;
-            for (tempu8 = shamt; tempu8 <= rd; tempu8++, tempu16++) {
-                tempu32 |= (registers[rs] & (0x1 << tempu8)) << tempu16;
+            tempu32_2 = 0;
+            for (;shamt <= tempu16; shamt++, tempu32_2++) {
+                tempu32 |= ((registers[rs] & (0x1u << shamt)) > 0 ? 1u : 0u) << tempu32_2;
             }
             registers[rt] = tempu32;
         }
         DISPATCH();
     
     // 0x04 Insert Bit Field
-    // FIXME: Definitely need to verify correctness here
     INS:
         DECODE_RS();
         DECODE_RT();
@@ -1788,12 +1711,16 @@ dispatchStart:
         }
         else {
             tempu32 = 0;
-            tempu16 = 0;
-            for (tempu8 = shamt; tempu8 <= rd; tempu8++, tempu16++) {
-                tempu32 |= (registers[rs] & (0x1 << tempu8)) << tempu16;
-                registers[rt] &= ~(0x1 << tempu8);
+            tempu16 = rd - shamt;
+            // Extract bits
+            for (tempu32_2 = 0; tempu32_2 <= tempu16; tempu32_2++) {
+                tempu32 |= ((registers[rs] & (0x1u << tempu32_2)) > 0 ? 1u : 0u) << tempu32_2;
             }
-            registers[rt] |= tempu32;
+            // Merge bits
+            for (tempu32_2 = 0; shamt <= rd; shamt++, tempu32_2++) {
+                registers[rt] &= ~(0x1 << shamt);
+                registers[rt] |= ((tempu32 & (0x1 << tempu32_2)) > 0 ? 1u : 0u) << shamt;
+            }
         }
         DISPATCH();
     
@@ -1828,7 +1755,6 @@ dispatchStart:
                 registers[rd] = tempi32;
                 DISPATCH();
             }
-            
             default:
                 goto UNIMPLEMENTED_INSTRUCTION;
         }
@@ -2032,12 +1958,13 @@ dispatchStart:
     }
     // Multi-catch for in processor interrupts
     // exceptions and simulation errors
-    catch (std::exception& e) {
+    catch (std::runtime_error& e) {
     #ifdef TEST_PROJECT
         exceptRestartLoop = false;
     #else
         exceptRestartLoop = true;
     #endif
+        consoleUI->sendConsoleMsg(e.what());
     }
     
     // ISO C++ forbids gotos into a try-catch block

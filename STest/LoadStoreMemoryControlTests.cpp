@@ -259,20 +259,29 @@ void MIPS_SW() {
 }
 
 void MIPS_SWL() {
-    /*
     reset();
     cpu0->setPC(0x00400000);
     cpu0->setRegister(29, 0x10010000);  // Init Stack pointer
     cpu0->setRegister(8, 0xdeadbeef);   // $t0 = 0xdeadbeef
     memory->storeWord(0x00400000, 0x23bdffe0, cpu0->getControlCoprocessor());   // addi $sp $sp, -32
-    memory->storeWord(0x00400004, 0x23bdffe0, cpu0->getControlCoprocessor());   // swl $t0, 2($sp)
-    cpu0->stepCPU(1);
-    */
-    TEST_NOT_IMPLEMENTED();
+    memory->storeWord(0x00400004, 0xaba80002, cpu0->getControlCoprocessor());   // swl $t0, 2($sp)
+    cpu0->stepCPU(2);
+    uint32_t word = 0;
+    memory->readWord(0x1000ffe0, &word, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0x0000deadu, word);
 }
 
 void MIPS_SWR() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0x00400000);
+    cpu0->setRegister(29, 0x10010000);  // Init Stack pointer
+    cpu0->setRegister(8, 0xdeadbeef);   // $t0 = 0xdeadbeef
+    memory->storeWord(0x00400000, 0x23bdffe0, cpu0->getControlCoprocessor());   // addi $sp $sp, -32
+    memory->storeWord(0x00400004, 0xbba80005, cpu0->getControlCoprocessor());   // swr $t0, 5($sp)
+    cpu0->stepCPU(2);
+    uint32_t word = 0;
+    memory->readWord(0x1000ffe4, &word, cpu0->getControlCoprocessor());
+    ASSERT_EQUAL(0xbeef0000u, word);
 }
 
 void MIPS_SYNC() {

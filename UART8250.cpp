@@ -111,7 +111,7 @@ uint8_t UART8250::readByte(uint32_t address) {
             return SR;
         }
         default: {
-            throw new std::runtime_error("Memory tried to read from invalid UART address");
+            throw std::runtime_error("Memory tried to read from invalid UART address");
         }
     }
 }
@@ -160,7 +160,7 @@ void UART8250::storeByte(uint32_t address, uint8_t value) {
             break;
         }
         default: {
-            throw new std::runtime_error("Memory tried to write to invalid UART address");
+            throw std::runtime_error("Memory tried to write to invalid UART address");
         }
     }
 }
