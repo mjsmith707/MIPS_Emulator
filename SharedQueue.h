@@ -23,19 +23,14 @@ template <typename T> class Shared_Queue {
         }
         
         T pop() {
-            try {
-                std::lock_guard<std::mutex> lock(queueMutex);
-                if (!sharedQueue.empty()) {
-                    T result = sharedQueue. front();
-                    sharedQueue.pop();
-                    return result;
-                }
-                else {
-                    throw std::runtime_error("Shared Queue is Empty");
-                }
+            std::lock_guard<std::mutex> lock(queueMutex);
+            if (!sharedQueue.empty()) {
+                T result = sharedQueue.front();
+                sharedQueue.pop();
+                return result;
             }
-            catch (std::runtime_error e) {
-                throw e;
+            else {
+                throw std::runtime_error("Shared Queue is Empty");
             }
         }
         

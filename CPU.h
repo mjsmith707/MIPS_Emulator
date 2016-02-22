@@ -52,6 +52,13 @@ class CPU {
         #define DECODE_SEL() sel = IR & SELMASK
         #define DECODE_CO() (IR & COMASK)
     
+        // Dispatch macro
+        #ifdef TEST_PROJECT
+            #define DISPATCH() return;
+        #else
+            #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+        #endif
+    
         // Pointer to ConsoleUI for stdout debugging
         ConsoleUI* consoleUI;
     

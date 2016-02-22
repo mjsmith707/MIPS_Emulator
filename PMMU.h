@@ -175,7 +175,7 @@ class PMMU {
             *half |= frame[vaddr+1];
         }
     
-        // Read an unaligned halfword (lwl, lwr)
+        // Read an unaligned halfword (lwl, lwr)23e  cxerf a
         inline static void readHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t* half, Coprocessor0* coproc) {
             translateVaddr(&vaddr1, coproc);
             translateVaddr(&vaddr2, coproc);
@@ -190,24 +190,31 @@ class PMMU {
                     found2 = true;
                 }
                 if (found1 && found2) {
-                    auto itr1 = mmioDeviceTable.find(vaddr1);
-                    auto itr2 = mmioDeviceTable.find(vaddr2);
-                    *half = itr1->second->readByte(vaddr1);
-                    *half <<= 8;
-                    *half |= itr2->second->readByte(vaddr2);
-                    return;
+                    break;
                 }
             }
             
-            // No MMIO Device found so retrieve from memory
-            uint8_t* frame1 = getFramePointer(vaddr1);
-            uint8_t* frame2 = getFramePointer(vaddr2);
-            vaddr1 &= 0x00000FFF;
-            vaddr2 &= 0x00000FFF;
+            if (found1) {
+                auto itr1 = mmioDeviceTable.find(vaddr1);
+                *half = itr1->second->readByte(vaddr1);
+            }
+            else {
+                uint8_t* frame1 = getFramePointer(vaddr1);
+                vaddr1 &= 0x00000FFF;
+                *half = frame1[vaddr1];
+            }
             
-            *half = frame1[vaddr1];
-            *half <<= 8;
-            *half |= frame2[vaddr2];
+            if (found2) {
+                auto itr2 = mmioDeviceTable.find(vaddr2);
+                *half <<= 8;
+                *half |= itr2->second->readByte(vaddr2);
+            }
+            else {
+                uint8_t* frame2 = getFramePointer(vaddr2);
+                vaddr2 &= 0x00000FFF;
+                *half <<= 8;
+                *half |= frame2[vaddr2];
+            }
         }
     
         // Read a word
@@ -285,7 +292,7 @@ class PMMU {
             frame[vaddr+1] = value;
         }
     
-        // Store a halfword
+        // Store an unaligned halfword (swl, swr)
         inline static void storeHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t value, Coprocessor0* coproc) {
             translateVaddr(&vaddr1, coproc);
             translateVaddr(&vaddr2, coproc);
@@ -300,22 +307,29 @@ class PMMU {
                     found2 = true;
                 }
                 if (found1 && found2) {
-                    auto itr1 = mmioDeviceTable.find(vaddr1);
-                    auto itr2 = mmioDeviceTable.find(vaddr2);
-                    itr1->second->storeByte(vaddr1, value >> 8);
-                    itr2->second->storeByte(vaddr2, value);
-                    return;
+                    break;
                 }
             }
-                
-            // No MMIO Device found so save to memory
-            uint8_t* frame1 = getFramePointer(vaddr1);
-            uint8_t* frame2 = getFramePointer(vaddr2);
-            vaddr1 &= 0x00000FFF;
-            vaddr2 &= 0x00000FFF;
+            if (found1) {
+                auto itr1 = mmioDeviceTable.find(vaddr1);
+                itr1->second->storeByte(vaddr1, value >> 8);
+            }
+            else {
+                uint8_t* frame1 = getFramePointer(vaddr1);
+                vaddr1 &= 0x00000FFF;
+                frame1[vaddr1] = value >> 8;
+            }
             
-            frame1[vaddr1] = value >> 8;
-            frame2[vaddr2] = value;
+            if (found2) {
+                auto itr2 = mmioDeviceTable.find(vaddr2);
+                itr2->second->storeByte(vaddr2, value);
+            }
+            else {
+                uint8_t* frame2 = getFramePointer(vaddr2);
+                vaddr2 &= 0x00000FFF;
+                frame2[vaddr2] = value;
+            }
+
         }
     
         // Store a word

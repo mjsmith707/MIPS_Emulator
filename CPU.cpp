@@ -694,13 +694,6 @@ void CPU::dispatchLoop() {
         &&INVALID_INSTRUCTION,          // 0x1F
     };
     
-    // Dispatch macro
-    #ifdef TEST_PROJECT
-        #define DISPATCH() return;
-    #else
-        #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
-    #endif
-    
     // Begin Dispatch Loop
 dispatchStart:
     try {
@@ -970,7 +963,6 @@ dispatchStart:
         tempi32 >>= 24;
         registers[rt] = tempi32;
         DISPATCH();
-
     
     // 0x21 Load Half
     LH:
@@ -1826,9 +1818,9 @@ dispatchStart:
         //DISPATCH();
     
     // 0x0B Trap if Less Than Immediate Unsigned
-        TLTIU:
+    TLTIU:
         goto UNIMPLEMENTED_INSTRUCTION;
-    //DISPATCH();
+        //DISPATCH();
     
     // 0x0C Trap if Equal Immediate
     TEQI:
@@ -1914,6 +1906,7 @@ dispatchStart:
     DI:
         goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
+        
     // 0x18 Exception Return
     ERET:
         goto UNIMPLEMENTED_INSTRUCTION;
@@ -1964,7 +1957,10 @@ dispatchStart:
     #else
         exceptRestartLoop = true;
     #endif
-        consoleUI->sendConsoleMsg(e.what());
+        
+        if (consoleUI != nullptr) {
+            consoleUI->sendConsoleMsg(e.what());
+        }
     }
     
     // ISO C++ forbids gotos into a try-catch block
