@@ -14,14 +14,14 @@
  */
 
 // Default Constructor
-COP0Register::COP0Register() {
+COP0Register::COP0Register() : resetValue(0) {
     for (size_t i=0; i<32; i++) {
         bitfields[i] = READWRITE;
     }
 };
 
 // Parameterized Constructor
-COP0Register::COP0Register(uint32_t value, uint32_t mask1, uint32_t mask2) {
+COP0Register::COP0Register(uint32_t value, uint32_t mask1, uint32_t mask2) : resetValue(value) {
     this->copregister = value;
     setRWMask(mask1, mask2);
 }
@@ -83,7 +83,7 @@ void COP0Register::setValue(uint32_t value, bool hwmode) {
             newvalue |= bit1;
         }
         else if (bitfields[i] == READ) {
-            if(hwmode) {
+            if (hwmode) {
                 // Hardware Writable
                 newvalue |= bit2;
             }
@@ -103,4 +103,9 @@ void COP0Register::setValue(uint32_t value, bool hwmode) {
     
     // Update Register Value
     this->copregister = newvalue;
+}
+
+// Resets register to its original value
+void COP0Register::resetRegister() {
+    this->copregister = this->resetValue;
 }

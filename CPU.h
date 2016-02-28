@@ -19,6 +19,8 @@
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
 
+class MIPSException;        // Exception class forward reference
+
 // MIPS CPU
 class CPU {
     private:
@@ -66,7 +68,7 @@ class CPU {
         PMMU* memory;
     
         // Control Coprocessor0
-        Coprocessor0 cop0_processor;
+        Coprocessor0 cop0;
     
         // GPR Register Set
         uint32_t registers[32];
@@ -130,6 +132,40 @@ class CPU {
         // CPU Execution Functions
         void decodeAll();
         void dispatchLoop();
+    
+        // Friendship sadly is not inherited
+        // and exceptions necessarily need to modify private members.
+        // The alternatives are one super-class with switch-based
+        // dispatching to the correct execution handler.
+        // or even more code in CPU.cpp.
+        friend class MIPSException;
+        friend class ColdResetException;
+        friend class SoftResetException;
+        friend class NonmaskableInterruptException;
+        friend class MachineCheckException;
+        friend class WatchIFException;
+        friend class AddressErrorIFException;
+        friend class TLBRefillIFException;
+        friend class TLBInvalidIFException;
+        friend class TLBExecuteInhibitException;
+        friend class CacheErrorIFException;
+        friend class BusErrorIFException;
+        friend class CoprocessorUnusableException;
+        friend class ReservedInstructionException;
+        friend class IntegerOverflowException;
+        friend class TrapException;
+        friend class SystemCallException;
+        friend class BreakpointException;
+        friend class FloatingPointException;
+        friend class Coprocessor2Exception;
+        friend class WatchDataException;
+        friend class AddressErrorDataException;
+        friend class TLBRefillDataException;
+        friend class TLBInvalidDataException;
+        friend class TLBReadInhibitException;
+        friend class TLBModifiedException;
+        friend class CacheErrorDataException;
+        friend class BusErrorDataException;
     
         // Prints out cpu and instruction information
         void debugPrint();

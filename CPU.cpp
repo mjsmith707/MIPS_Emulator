@@ -7,6 +7,7 @@
 //
 
 #include "CPU.h"
+#include "MIPSException.h"
 
 // String tables for readable instruction decoding
 const char* CPU::opcodeNames[64] {
@@ -116,7 +117,7 @@ void CPU::sendSignal(uint32_t sig) {
 // Returns the control coprocessor associated with this CPU
 // Mainly for loading elf files into memory
 Coprocessor0* CPU::getControlCoprocessor() {
-    return &cop0_processor;
+    return &cop0;
 }
 
 // For unit testing interface
@@ -294,7 +295,7 @@ void CPU::debugPrint() {
         PC = branchAddr; \
     } \
 \
-    memory->readWord(PC, &IR, &cop0_processor); \
+    memory->readWord(PC, &IR, &cop0); \
     PC += 4; \
 \
     if (branchDelay) { \
@@ -957,7 +958,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readByte(tempi32, &tempu8, &cop0_processor);
+        memory->readByte(tempi32, &tempu8, &cop0);
         tempi32 = tempu8;
         tempi32 <<= 24;
         tempi32 >>= 24;
@@ -971,7 +972,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readHalf(tempi32, &tempu16, &cop0_processor);
+        memory->readHalf(tempi32, &tempu16, &cop0);
         tempi32 = tempu16;
         tempi32 <<= 16;
         tempi32 >>= 16;
@@ -984,7 +985,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->readHalfUnaligned(tempi32, tempi32+1, &tempu16, &cop0_processor);
+        memory->readHalfUnaligned(tempi32, tempi32+1, &tempu16, &cop0);
         tempu32 = tempu16 << 16;
         registers[rt] &= 0x0000FFFF;
         registers[rt] |= tempu32;
@@ -997,7 +998,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readWord(tempi32, &tempu32, &cop0_processor);
+        memory->readWord(tempi32, &tempu32, &cop0);
         tempi32 = tempu32;
         registers[rt] = tempi32;
         DISPATCH();
@@ -1009,7 +1010,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readByte(tempi32, &tempu8, &cop0_processor);
+        memory->readByte(tempi32, &tempu8, &cop0);
         registers[rt] = tempu8;
         DISPATCH();
     
@@ -1020,7 +1021,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readHalf(tempi32, &tempu16, &cop0_processor);
+        memory->readHalf(tempi32, &tempu16, &cop0);
         registers[rt] = tempu16;
         DISPATCH();
     
@@ -1030,7 +1031,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->readHalfUnaligned(tempi32-1, tempi32, &tempu16, &cop0_processor);
+        memory->readHalfUnaligned(tempi32-1, tempi32, &tempu16, &cop0);
         tempu32 = tempu16;
         registers[rt] &= 0xFFFF0000;
         registers[rt] |= tempu32;
@@ -1045,7 +1046,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeByte(tempi32, registers[rt], &cop0_processor);
+        memory->storeByte(tempi32, registers[rt], &cop0);
         DISPATCH();
     
     // 0x29 Store Halfword
@@ -1055,7 +1056,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeHalf(tempi32, registers[rt], &cop0_processor);
+        memory->storeHalf(tempi32, registers[rt], &cop0);
         DISPATCH();
     
     // 0x2A Store Word Left
@@ -1064,7 +1065,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->storeHalfUnaligned(tempi32, tempi32+1, (registers[rt] & 0xFFFF0000) >> 16, &cop0_processor);
+        memory->storeHalfUnaligned(tempi32, tempi32+1, (registers[rt] & 0xFFFF0000) >> 16, &cop0);
         DISPATCH();
     
     // 0x2B Store Word
@@ -1074,7 +1075,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeWord(tempi32, registers[rt], &cop0_processor);
+        memory->storeWord(tempi32, registers[rt], &cop0);
         DISPATCH();
     
     // 0x2C
@@ -1087,7 +1088,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->storeHalfUnaligned(tempi32-1, tempi32, registers[rt] & 0x0000FFFF, &cop0_processor);
+        memory->storeHalfUnaligned(tempi32-1, tempi32, registers[rt] & 0x0000FFFF, &cop0);
         DISPATCH();
     
     // 0x2F Cache
@@ -1891,7 +1892,7 @@ dispatchStart:
         DECODE_SEL();
         DECODE_RT();
         DECODE_RD();
-        registers[rt] = cop0_processor.getRegister(rd, sel);
+        registers[rt] = cop0.getRegister(rd, sel);
         DISPATCH();
     
     // 0x04 Move To Coprocessor0
@@ -1899,7 +1900,7 @@ dispatchStart:
         DECODE_SEL();
         DECODE_RT();
         DECODE_RD();
-        cop0_processor.setRegister(rd, sel, registers[rt]);
+        cop0.setRegister(rd, sel, registers[rt]);
         DISPATCH();
     
     // 0x0B Disable Interrupts
@@ -1961,6 +1962,10 @@ dispatchStart:
         if (consoleUI != nullptr) {
             consoleUI->sendConsoleMsg(e.what());
         }
+    }
+    // MIPS Exceptions
+    catch (MIPSException& e) {
+        e.execute(this);
     }
     
     // ISO C++ forbids gotos into a try-catch block

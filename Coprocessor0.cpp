@@ -17,7 +17,7 @@ Coprocessor0::Coprocessor0() {
     // MIPS Arch Vol 3
     for (unsigned int i=0; i<32; i++) {
         for (unsigned int j=0; j<32; j++) {
-            registerFile[i][j] = NULL;
+            registerFile[i][j] = nullptr;
         }
     }
     
@@ -51,9 +51,15 @@ Coprocessor0::Coprocessor0() {
     
     // PageMask Register
     // reset: 00000000000000000000000000000000
-    // mask1: 00011111111111111111000000000000
-    // mask2: 00011111111111111111000000000000
-    registerFile[5][0] = new COP0Register(0x0, 0x1FFFF000, 0x1FFFF000);
+    // mask1: 00011111111111111111100000000000
+    // mask2: 00011111111111111111100000000000
+    registerFile[5][0] = new COP0Register(0x0, 0x1FFFF800, 0x1FFFF800);
+    
+    // PageGrain Register
+    // reset: 00000000000000000000000000000000
+    // mask1: 11011000000000000000000000011111
+    // mask2: 00011000000000000000000000000000
+    registerFile[5][1] = new COP0Register(0x0, 0xD800001F, 0x18000000);
     
     // Wired Register
     // reset: 00000000000000000000000000000000
@@ -61,11 +67,11 @@ Coprocessor0::Coprocessor0() {
     // mask2: 00000000000000000000000000111111
     registerFile[6][0] = new COP0Register(0x0, 0x0000003F, 0x0000003F);
     
-    // Reserved Register
+    // HWREna Register
     // reset: 00000000000000000000000000000000
-    // mask1: 00000000000000000000000000000000
-    // mask2: 00000000000000000000000000000000
-    registerFile[7][0] = new COP0Register(0x0, 0x0, 0x0);
+    // mask1: 00000000000000000000000000011111
+    // mask2: 00000000000000000000000000011111
+    registerFile[7][0] = new COP0Register(0x0, 0x1F, 0x1F);
     
     // BadVAddr Register
     // reset: 00000000000000000000000000000000
@@ -88,9 +94,9 @@ Coprocessor0::Coprocessor0() {
     
     // EntryHi Register
     // reset: 00000000000000000000000000000000
-    // mask1: 11111111111111111110000011111111
-    // mask2: 11111111111111111110000011111111
-    registerFile[10][0] = new COP0Register(0x0, 0xFFFFE0FF, 0xFFFFE0FF);
+    // mask1: 11111111111111111111100011111111
+    // mask2: 11111111111111111111100011111111
+    registerFile[10][0] = new COP0Register(0x0, 0xFFFFF8FF, 0xFFFFF8FF);
     
     // Compare Register
     // reset: 00000000000000000000000000000000
@@ -111,6 +117,21 @@ Coprocessor0::Coprocessor0() {
     // mask2: 11001010011110001111111100010111
     registerFile[12][0] = new COP0Register(0x400004, 0xCE78FF17, 0xCA78FF17);
     
+    // IntCtl Register
+    // Timer Int = HW0
+    // Counter Int = HW1
+    // FIXME: Performance counters optional?
+    // reset: 01001100000000000000000000000000
+    // mask1: 11111111100000000000000000000000
+    // mask2: 00000000000000000000000000000000
+    registerFile[12][1] = new COP0Register(0x4C000000, 0xFF800000, 0x0);
+    
+    // SRSCtl Register
+    // reset: 00000000000000000000000000000000
+    // mask1: 00111100001111001111001111001111
+    // mask2: 00000000000000001111001111000000
+    registerFile[12][2] = new COP0Register(0x0, 0x3C3CF3CF, 0xF3C0);
+    
     // Cause Register
     // reset: 00000000000000000000000000000000
     // mask1: 10110000110000001111111101111100
@@ -129,6 +150,13 @@ Coprocessor0::Coprocessor0() {
     // mask1: 11111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
     registerFile[15][0] = new COP0Register(0xFF000220, 0xFFFFFFFF, 0x0);
+    
+    // EBase Register
+    // No write-gate
+    // reset: 10000000000000000000000000000000
+    // mask1: 11111111111111111111001111111111
+    // mask2: 00111111111111111111000000000000
+    registerFile[15][1] = new COP0Register(0x80000000, 0xFFFFF3FF, 0x3FFFF000);
     
     // Configuration Register 0
     // reset: 10000000000000001000000010000000
@@ -280,10 +308,11 @@ Coprocessor0::Coprocessor0() {
 }
 
 // Helper functions
+// Tests whether the processor is in kernel mode
 inline bool Coprocessor0::inKernelMode() {
-    return (((registerFile[12][0]->copregister & STATUS_KSUBITS) == 0x0)
-            || ((registerFile[12][0]->copregister & STATUS_EXLBIT) > 0x0)
-            || ((registerFile[12][0]->copregister & STATUS_ERLBIT) > 0x0));
+    return (((registerFile[12][0]->copregister & STATUS_KSU) == 0x0)
+            || ((registerFile[12][0]->copregister & STATUS_EXL) > 0x0)
+            || ((registerFile[12][0]->copregister & STATUS_ERL) > 0x0));
 }
 
 inline bool Coprocessor0::inSupervisorMode() {
@@ -291,29 +320,41 @@ inline bool Coprocessor0::inSupervisorMode() {
     return false;
 }
 
+// Tests whether the processor is in usermode
 inline bool Coprocessor0::inUserMode() {
-    return (((registerFile[12][0]->copregister & STATUS_KSUBITS) == 0x10)
-            && ((registerFile[12][0]->copregister & STATUS_EXLBIT) == 0x0)
-            && ((registerFile[12][0]->copregister & STATUS_ERLBIT) == 0x0));
+    return (((registerFile[12][0]->copregister & STATUS_KSU) == 0x10)
+            && ((registerFile[12][0]->copregister & STATUS_EXL) == 0x0)
+            && ((registerFile[12][0]->copregister & STATUS_ERL) == 0x0));
 }
 
+// Retrives a coprocessor0 register
 uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
-    if (registerFile[regnum][sel] == NULL) {
+    if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
     return registerFile[regnum][sel]->getValue();
 }
 
+// Sets a coprocessor0 register in ISA/Software mode
 void Coprocessor0::setRegister(uint8_t regnum, uint8_t sel, uint32_t value) {
-    if (registerFile[regnum][sel] == NULL) {
+    if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
     registerFile[regnum][sel]->setValue(value, false);
 }
 
+// Sets a coprocessor 0 register in Hardware mode
 void Coprocessor0::setRegisterHW(uint8_t regnum, uint8_t sel, uint32_t value) {
-    if (registerFile[regnum][sel] == NULL) {
+    if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
     registerFile[regnum][sel]->setValue(value, true);
+}
+
+// Resets a register to it's original reset value
+void Coprocessor0::resetRegister(uint8_t regnum, uint8_t sel) {
+    if (registerFile[regnum][sel] == nullptr) {
+        throw std::runtime_error("Invalid coprocessor register addressed!");
+    }
+    registerFile[regnum][sel]->resetRegister();
 }
