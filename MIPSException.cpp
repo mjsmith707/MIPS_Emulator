@@ -75,7 +75,7 @@ void MIPSException::generalException(CPU* cpu, ExceptionType etype, ExceptionCod
         }
         else {
             // Archrev >= 2
-            vectorBase = (cpu->cop0.getRegister(CO0_EBASE) & EBASE_EBASE) | 0x000;
+            vectorBase = (cpu->cop0.getRegister(CO0_EBASE) & EBASE_EBASE) & 0xFFFFFF000;
         }
         
         // Set PC
@@ -84,6 +84,54 @@ void MIPSException::generalException(CPU* cpu, ExceptionType etype, ExceptionCod
         vectorOffset &= ~(0xC0000000);
         vectorBase += vectorOffset;
         cpu->PC |= (vectorBase & ~(0xC0000000));
+    }
+}
+
+// Common functions for many exceptions
+// Sets BadVaddr to the failing address
+void MIPSException::setBadVaddr(CPU* cpu) {
+    // Set BadVAddr
+    cpu->cop0.setRegisterHW(CO0_BADVADDR, cpu->PC-4);
+}
+
+// Sets Context based on Config3_ctxtc
+void MIPSException::setContextBadVPN2(CPU* cpu) {
+    // If Config3_ctxtc > 0
+    if ((cpu->cop0.getRegister(CO0_CONFIG3) & CONFIG3_CTXTC) > 0) {
+        // ContextConfig optional so not implemented
+    }
+    else {
+        // Context_vpn2 contains VA31-13
+        cpu->cop0.setRegisterHW(CO0_CONTEXT, cpu->cop0.getRegister(CO0_CONTEXT) & ~(CONTEXT_BADVPN2));
+        uint32_t va = cpu->PC-4;
+        va >>= 18;
+        va <<= 4;
+        cpu->cop0.setRegisterHW(CO0_CONTEXT, cpu->cop0.getRegister(CO0_CONTEXT) | va);
+    }
+}
+
+// Sets EntryHi_vpn2 to failing VAddr
+void MIPSException::setEntryHiVA(CPU* cpu) {
+    // EntryHi_vpn2 = va_31-13
+    cpu->cop0.setRegisterHW(CO0_ENTRYHI, cpu->cop0.getRegister(CO0_ENTRYHI) & ~(ENTRYHI_VPN2));
+    uint32_t va = cpu->PC-4;
+    va >>= 18;
+    va <<= 13;
+    cpu->cop0.setRegisterHW(CO0_ENTRYHI, cpu->cop0.getRegister(CO0_ENTRYHI) | va);
+    // FIXME: EntryHi_asid = asid referenced (TLB related)
+}
+
+// Sets ErrorEPC to the restart location
+void MIPSException::setErrorEPC(CPU* cpu) {
+    // Set ErrorEPC
+    if (cpu->branchDelay) {
+        // Set to branch/jump instruction address
+        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-8);
+        cpu->branchDelay = false;
+    }
+    else {
+        // Set to instruction address
+        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-4);
     }
 }
 
@@ -144,16 +192,7 @@ void ColdResetException::execute(CPU* cpu) {
     // TODO: WatchLo[n]_w = 0 Not Implemented
     // TODO: PerfCnt.Control[n]_ie = 0 Not Implemented
 
-    // Set ErrorEPC
-    if (cpu->branchDelay) {
-        // Set to branch/jump instruction address
-        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-8);
-        cpu->branchDelay = false;
-    }
-    else {
-        // Set to instruction address
-        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-4);
-    }
+    setErrorEPC(cpu);
     
     // Set Program Counter
     cpu->PC = 0xBFC00000;
@@ -190,16 +229,8 @@ void SoftResetException::execute(CPU* cpu) {
     // TODO: WatchLo[n]_r = 0 Not Implemented
     // TODO: WatchLo[n]_w = 0 Not Implemented
     // TODO: PerfCnt.Control[n]_ie = 0 Not Implemented
-    // Set ErrorEPC
-    if (cpu->branchDelay) {
-        // Set to branch/jump instruction address
-        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-8);
-        cpu->branchDelay = false;
-    }
-    else {
-        // Set to instruction address
-        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-4);
-    }
+    
+    setErrorEPC(cpu);
     
     // Set Program Counter
     cpu->PC = 0xBFC00000;
@@ -222,16 +253,7 @@ void NonmaskableInterruptException::execute(CPU* cpu) {
     // Status_erl = 1
     cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) | STATUS_ERL);
     
-    // Set ErrorEPC
-    if (cpu->branchDelay) {
-        // Set to branch/jump instruction address
-        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-8);
-        cpu->branchDelay = false;
-    }
-    else {
-        // Set to instruction address
-        cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-4);
-    }
+    setErrorEPC(cpu);
     
     // Set Program Counter
     cpu->PC = 0xBFC00000;
@@ -243,6 +265,8 @@ MachineCheckException::MachineCheckException() {
 }
 
 void MachineCheckException::execute(CPU* cpu) {
+    // FIXME: Some vague descriptions of other possible saved state (pg 94 vol3)
+    
     generalException(cpu, ExceptionType::None, ExceptionCode::MCheck);
 }
 
@@ -261,9 +285,7 @@ AddressErrorIFException::AddressErrorIFException() {
 }
 
 void AddressErrorIFException::execute(CPU* cpu) {
-    // Set BadVAddr
-    cpu->cop0.setRegisterHW(CO0_BADVADDR, cpu->PC-4);
-    
+    setBadVaddr(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::AdEL);
 }
 
@@ -272,17 +294,10 @@ TLBRefillIFException::TLBRefillIFException() {
 }
 
 void TLBRefillIFException::execute(CPU* cpu) {
-    // Set BadVAddr
-    cpu->cop0.setRegisterHW(CO0_BADVADDR, cpu->PC-4);
-    // If Config3_ctxtc > 0
-    // FIXME: Finish this part
-    if ((cpu->cop0.getRegister(CO0_CONFIG3) & CONFIG3_CTXTC) > 0) {
-        
-    }
-    else {
-        
-    }
-    // FIXME: Set EntryHi
+    setBadVaddr(cpu);
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::TLBRefill, ExceptionCode::TLBL);
 }
 
 // TLB Invalid - Instruction Fetch Exception
@@ -290,176 +305,218 @@ TLBInvalidIFException::TLBInvalidIFException() {
 }
 
 void TLBInvalidIFException::execute(CPU* cpu) {
-    
+    setBadVaddr(cpu);
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::None, ExceptionCode::TLBL);
 }
 
 // TLB Execute Inhibit Exception
 TLBExecuteInhibitException::TLBExecuteInhibitException() {
-    
 }
 
 void TLBExecuteInhibitException::execute(CPU* cpu) {
-    
+    // If PageGrain_iec = 1 then TLBXI else TLBL
+    ExceptionCode code = (cpu->cop0.getRegister(CO0_PAGEGRAIN) & PAGEGRAIN_IEC) > 0 ? ExceptionCode::TLBXI : ExceptionCode::TLBL;
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::None, code);
 }
 
 // Cache Error - Instruction Fetch Exception
+// Not even sure if i need this really..
 CacheErrorIFException::CacheErrorIFException() {
-    
 }
 
 void CacheErrorIFException::execute(CPU* cpu) {
+    // TODO: Set CacheErr, Register is optional
     
+    // Status_erl = 1
+    cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) | STATUS_ERL);
+    setErrorEPC(cpu);
+    
+    // If Status_bev = 1
+    if ((cpu->cop0.getRegister(CO0_STATUS) & STATUS_BEV) > 0) {
+        cpu->PC = 0xBFC00200 + 0x100;
+    }
+    else {
+        // Archrev >= 2
+        // This makes zero sense but ok
+        cpu->PC = cpu->cop0.getRegister(CO0_EBASE);
+        cpu->PC |= 0x20000100;
+        cpu->PC &= 0xFFFFFF00;
+    }
 }
 
 // Bus Error - Instruction Fetch Exception
 BusErrorIFException::BusErrorIFException() {
-    
 }
 
 void BusErrorIFException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::IBE);
 }
 
 // Coprocessor Unusable Exception
 CoprocessorUnusableException::CoprocessorUnusableException() {
-    
 }
 
 void CoprocessorUnusableException::execute(CPU* cpu) {
-    
+    // FIXME: Cause_ce is described in generalException
+    // And also described as 'additional' here
+    // So which one does it...
+    generalException(cpu, ExceptionType::None, ExceptionCode::CpU);
 }
 
 // Reserved Instruction Exception
 ReservedInstructionException::ReservedInstructionException() {
-    
 }
 
 void ReservedInstructionException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::RI);
 }
 
 // Integer Overflow Exception
 IntegerOverflowException::IntegerOverflowException() {
-    
 }
 
 void IntegerOverflowException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::Ov);
 }
 
 // Trap Exception
 TrapException::TrapException() {
-    
 }
 
 void TrapException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::Tr);
 }
 
 // System Call Exception
 SystemCallException::SystemCallException() {
-    
 }
 
 void SystemCallException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::Sys);
 }
 
 // Breakpoint Exception
 BreakpointException::BreakpointException() {
-    
 }
 
 void BreakpointException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::Bp);
 }
 
 // Floating-point Exception
 FloatingPointException::FloatingPointException() {
-    
 }
 
 void FloatingPointException::execute(CPU* cpu) {
-    
+    // TODO: Save cause to FCSR
+    generalException(cpu, ExceptionType::None, ExceptionCode::FPE);
 }
 
 // Coprocessor 2 Exception
 Coprocessor2Exception::Coprocessor2Exception() {
-    
 }
 
 void Coprocessor2Exception::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::C2E);
 }
 
 // Watch - Data Exception
 WatchDataException::WatchDataException() {
-    
 }
 
 void WatchDataException::execute(CPU* cpu) {
+    // FIXME: Cause_wp set for something idk
     
+    generalException(cpu, ExceptionType::None, ExceptionCode::WATCH);
 }
 
 // Address Error - Data Exception
 AddressErrorDataException::AddressErrorDataException() {
-    
 }
 
 void AddressErrorDataException::execute(CPU* cpu) {
-    
+    setBadVaddr(cpu);
+    generalException(cpu, ExceptionType::None, ExceptionCode::AdES);
 }
 
 // TLB Refill - Data Exception
 TLBRefillDataException::TLBRefillDataException() {
-    
 }
 
 void TLBRefillDataException::execute(CPU* cpu) {
-    
+    setBadVaddr(cpu);
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::TLBRefill, ExceptionCode::TLBS);
 }
 
 // TLB Invalid - Data Exception
 TLBInvalidDataException::TLBInvalidDataException() {
-    
 }
 
 void TLBInvalidDataException::execute(CPU* cpu) {
-    
+    setBadVaddr(cpu);
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::None, ExceptionCode::TLBS);
 }
 
 // TLB Read-Inhibit Exception
 TLBReadInhibitException::TLBReadInhibitException() {
-    
 }
 
 void TLBReadInhibitException::execute(CPU* cpu) {
-    
+    // If PageGrain_iec = 1 then TLBRI else TLBL
+    ExceptionCode code = (cpu->cop0.getRegister(CO0_PAGEGRAIN) & PAGEGRAIN_IEC) > 0 ? ExceptionCode::TLBRI : ExceptionCode::TLBL;
+    setBadVaddr(cpu);
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::None, code);
 }
 
 // TLB Modified - Data Exception
 TLBModifiedException::TLBModifiedException() {
-    
 }
 
 void TLBModifiedException::execute(CPU* cpu) {
-    
+    setBadVaddr(cpu);
+    setContextBadVPN2(cpu);
+    setEntryHiVA(cpu);
+    generalException(cpu, ExceptionType::None, ExceptionCode::Mod);
 }
 
 // Cache Error - Data Exception
 CacheErrorDataException::CacheErrorDataException() {
-    
 }
 
 void CacheErrorDataException::execute(CPU* cpu) {
+    // TODO: Set CacheErr, Register is optional
     
+    // Status_erl = 1
+    cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) | STATUS_ERL);
+    setErrorEPC(cpu);
+    
+    // If Status_bev = 1
+    if ((cpu->cop0.getRegister(CO0_STATUS) & STATUS_BEV) > 0) {
+        cpu->PC = 0xBFC00200 + 0x100;
+    }
+    else {
+        // Archrev >= 2
+        // This makes zero sense but ok
+        cpu->PC = cpu->cop0.getRegister(CO0_EBASE);
+        cpu->PC |= 0x20000100;
+        cpu->PC &= 0xFFFFFF00;
+    }
 }
 
 // Bus Error - Data Exception
 BusErrorDataException::BusErrorDataException() {
-    
 }
 
 void BusErrorDataException::execute(CPU* cpu) {
-    
+    generalException(cpu, ExceptionType::None, ExceptionCode::DBE);
 }

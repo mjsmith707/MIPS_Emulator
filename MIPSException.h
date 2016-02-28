@@ -53,6 +53,11 @@ class MIPSException {
         };
     
         void generalException(CPU*, ExceptionType, ExceptionCode);
+        void setBadVaddr(CPU*);
+        void setContextBadVPN2(CPU*);
+        void setEntryHiVA(CPU*);
+        void setErrorEPC(CPU*);
+    
     public:
         virtual void execute(CPU*) = 0;
 };

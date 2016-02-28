@@ -48,6 +48,32 @@
 // Index Register Fields (CP0 Register 0, Select 0)
 #define INDEX_PBIT      0x80000000
 
+// Context Register Fields (CP0 Register 4, Select 0)
+#define CONTEXT_PTEBASE 0xFF800000
+#define CONTEXT_BADVPN2 0x007FFFF0
+
+// PageMask Register Fields (CP0 Register 5, Select 0)
+#define PAGEMASK_MASK   0x1FFFE000
+#define PAGEMASK_MASKX  0x00001800
+
+// PageGrain Register Fields (CP0 Register 5, Select 1)
+#define PAGEGRAIN_RIE   0x80000000
+#define PAGEGRAIN_XIE   0x40000000
+#define PAGEGRAIN_ELPA  0x20000000
+#define PAGEGRAIN_ESP   0x10000000
+#define PAGEGRAIN_IEC   0x08000000
+#define PAGEGRAIN_S32   0x04000000
+#define PAGEGRAIN_ASE   0x00001F00
+#define PAGEGRAIN_MCCAUSE   0x0000001F
+
+// EntryHi Register Fields (CP0 Register 10, Select 0)
+#define ENTRYHI_VPN2    0xFFFFE000
+#define ENTRYHI_VPN2X   0x00001800
+#define ENTRYHI_EH      0x00000400
+#define ENTRYHI_INV     0x00000400
+#define ENTRYHI_ASIDX   0x00000300
+#define ENTRYHI_ASID    0x000000FF
+
 // Status Register Fields (CP0 Register 12, Select 0)
 #define STATUS_CU3      0x80000000
 #define STATUS_CU2      0x40000000
@@ -81,28 +107,6 @@
 #define STATUS_ERL      0x00000004
 #define STATUS_EXL      0x00000002
 #define STATUS_IE       0x00000001
-
-// PageMask Register Fields (CP0 Register 5, Select 0)
-#define PAGEMASK_MASK   0x1FFFE000
-#define PAGEMASK_MASKX  0x00001800
-
-// PageGrain Register Fields (CP0 Register 5, Select 1)
-#define PAGEGRAIN_RIE   0x80000000
-#define PAGEGRAIN_XIE   0x40000000
-#define PAGEGRAIN_ELPA  0x20000000
-#define PAGEGRAIN_ESP   0x10000000
-#define PAGEGRAIN_IEC   0x08000000
-#define PAGEGRAIN_S32   0x04000000
-#define PAGEGRAIN_ASE   0x00001F00
-#define PAGEGRAIN_MCCAUSE   0x0000001F
-
-// EntryHi Register Fields (CP0 Register 10, Select 0)
-#define ENTRYHI_VPN2    0xFFFFE000
-#define ENTRYHI_VPN2X   0x00001800
-#define ENTRYHI_EH      0x00000400
-#define ENTRYHI_INV     0x00000400
-#define ENTRYHI_ASIDX   0x00000300
-#define ENTRYHI_ASID    0x000000FF
 
 // IntCtl Register Fields (CP0 Register 12, Select 1)
 #define INTCTL_IPTI     0xE0000000
