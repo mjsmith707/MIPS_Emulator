@@ -789,7 +789,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = 0;
         if (__builtin_sadd_overflow(registers[rs], immse, &tempi32)) {
-            // FIXME: Overflow trigger exception
+            throw IntegerOverflowException();
         }
         else {
             registers[rt] = tempi32;
@@ -1249,7 +1249,7 @@ dispatchStart:
     // 0x08 Jump Register
     JR:
         DECODE_RS();
-        // FIXME: checks Config1.CA
+        // FIXME: checks Config1.CA, MIPS16e not implemented
         branchDelay = true;
         branchAddr = registers[rs];
         DISPATCH();
@@ -1285,13 +1285,11 @@ dispatchStart:
     
     // 0x0C System Call
     SYSCALL:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        throw SystemCallException();
     
     // 0x0D Breakpoint
     BREAK:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        throw BreakpointException();
     
     // 0x0E
     
@@ -1396,7 +1394,7 @@ dispatchStart:
         DECODE_RD();
         tempi32 = 0;
         if (__builtin_sadd_overflow(registers[rs], registers[rt], &tempi32)) {
-            // FIXME: Overflow trigger exception
+            throw IntegerOverflowException();
         }
         else {
             registers[rd] = tempi32;
@@ -1418,7 +1416,7 @@ dispatchStart:
         DECODE_RD();
         tempi32 = 0;
         if (__builtin_ssub_overflow(registers[rs], registers[rt], &tempi32)) {
-        // FIXME: Overflow trigger exception
+            throw IntegerOverflowException();
         }
         else {
             registers[rd] = tempi32;
@@ -1504,33 +1502,57 @@ dispatchStart:
     
     // 0x30 Trap if Greater or Equal
     TGE:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        if ((int32_t)registers[rs] >= (int32_t)registers[rt]) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x31 Trap if Greater or Equal Unsigned
     TGEU:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        if (registers[rs] >= registers[rt]) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x32 Trap if Less Than
     TLT:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        if ((int32_t)registers[rs] < (int32_t)registers[rt]) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x33 Trap if Less Than Unsigned
     TLTU:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        if (registers[rs] < registers[rt]) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x34 Trap if Equal
     TEQ:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        if ((int32_t)registers[rs] == (int32_t)registers[rt]) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x35 Trap if Not Equal
     TNE:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        if ((int32_t)registers[rs] != (int32_t)registers[rt]) {
+            throw TrapException();
+        }
+        DISPATCH();
 /*
  * === END Funcs ===
  */
@@ -1805,33 +1827,56 @@ dispatchStart:
     
     // 0x08 Trap if Greater or Equal Immediate
     TGEI:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_IMMSE();
+        if ((int32_t)registers[rs] >= immse) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x09 Trap if Greater or Equal Immediate Unsigned
     TGEIU:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_IMMSE();
+        if (registers[rs] >= (uint32_t)immse) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x0A Trap if Less Than Immediate
     TLTI:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_IMMSE();
+        if ((int32_t)registers[rs] < immse) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x0B Trap if Less Than Immediate Unsigned
     TLTIU:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_IMMSE();
+        if (registers[rs] < (uint32_t)immse) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x0C Trap if Equal Immediate
     TEQI:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_IMMSE();
+        if ((int32_t)registers[rs] == immse) {
+            throw TrapException();
+        }
+        DISPATCH();
     
     // 0x0E Trap if Not Equal
     TNEI:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_IMMSE();
+        if ((int32_t)registers[rs] != immse) {
+            throw TrapException();
+        }
     
     // 0x10 Branch on Less Than Zero and Link
     BLTZAL:

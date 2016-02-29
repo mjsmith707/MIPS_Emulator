@@ -145,6 +145,7 @@
 #define CAUSE_EXCCODE   0x0000007C
 
 // EBase Register (CP0 Register 15, Select 1)
+#define EBASE_EBASEFULL 0xFFFFF000
 #define EBASE_EBASE     0x3FFFF000
 #define EBASE_CPUNUM    0x000003FF
 

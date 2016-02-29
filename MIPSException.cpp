@@ -56,35 +56,34 @@ void MIPSException::generalException(CPU* cpu, ExceptionType etype, ExceptionCod
                 }
             }
         }
-        
-        // FIXME: Cause_ce = FaultingCoprocessorNumber but we only have 0 so far
-        // Cause_ce = 0
-        cpu->cop0.setRegisterHW(CO0_CAUSE, cpu->cop0.getRegister(CO0_CAUSE) & ~(CAUSE_CE));
-        
-        // Set Cause_exccode
-        uint32_t ecodeu = static_cast<uint32_t>(ecode);
-        cpu->cop0.setRegisterHW(CO0_CAUSE, cpu->cop0.getRegister(CO0_CAUSE) & ~(CAUSE_EXCCODE));
-        cpu->cop0.setRegisterHW(CO0_CAUSE, cpu->cop0.getRegister(CO0_CAUSE) | (ecodeu << 2));
-        
-        // Status_exl = 1
-        cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) | STATUS_EXL);
-        
-        // If Status_bev = 1
-        if ((cpu->cop0.getRegister(CO0_STATUS) & STATUS_BEV) > 0) {
-            vectorBase = 0xBFC00200;
-        }
-        else {
-            // Archrev >= 2
-            vectorBase = (cpu->cop0.getRegister(CO0_EBASE) & EBASE_EBASE) & 0xFFFFFF000;
-        }
-        
-        // Set PC
-        cpu->PC = vectorBase & 0xC0000000;
-        vectorBase &= ~(0xC0000000);
-        vectorOffset &= ~(0xC0000000);
-        vectorBase += vectorOffset;
-        cpu->PC |= (vectorBase & ~(0xC0000000));
     }
+    // FIXME: Cause_ce = FaultingCoprocessorNumber but we only have 0 so far
+    // Cause_ce = 0
+    cpu->cop0.setRegisterHW(CO0_CAUSE, cpu->cop0.getRegister(CO0_CAUSE) & ~(CAUSE_CE));
+    
+    // Set Cause_exccode
+    uint32_t ecodeu = static_cast<uint32_t>(ecode);
+    cpu->cop0.setRegisterHW(CO0_CAUSE, cpu->cop0.getRegister(CO0_CAUSE) & ~(CAUSE_EXCCODE));
+    cpu->cop0.setRegisterHW(CO0_CAUSE, cpu->cop0.getRegister(CO0_CAUSE) | (ecodeu << 2));
+    
+    // Status_exl = 1
+    cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) | STATUS_EXL);
+    
+    // If Status_bev = 1
+    if ((cpu->cop0.getRegister(CO0_STATUS) & STATUS_BEV) > 0) {
+        vectorBase = 0xBFC00200;
+    }
+    else {
+        // Archrev >= 2
+        vectorBase = cpu->cop0.getRegister(CO0_EBASE) & EBASE_EBASEFULL;
+    }
+    
+    // Set PC
+    cpu->PC = vectorBase & 0xC0000000;
+    vectorBase &= ~(0xC0000000);
+    vectorOffset &= ~(0xC0000000);
+    vectorBase += vectorOffset;
+    cpu->PC |= (vectorBase & ~(0xC0000000));
 }
 
 // Common functions for many exceptions
