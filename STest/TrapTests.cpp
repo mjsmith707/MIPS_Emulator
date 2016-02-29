@@ -32,7 +32,7 @@ void MIPS_BREAK() {
     cpu0->setPC(0x00400000);
     memory->storeWord(0x00400000, 0x0000000d, cpu0->getControlCoprocessor()); // break
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -50,7 +50,7 @@ void MIPS_SYSCALL() {
     cpu0->setPC(0x00400000);
     memory->storeWord(0x00400000, 0x0000000c, cpu0->getControlCoprocessor()); // syscall
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -74,7 +74,7 @@ void MIPS_TEQ() {
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x00400004u, cpu0->getPC());
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -132,7 +132,7 @@ void MIPS_TGE() {
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x00400004u, cpu0->getPC());
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -218,7 +218,7 @@ void MIPS_TGEU() {
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x00400004u, cpu0->getPC());
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -248,7 +248,7 @@ void MIPS_TLT() {
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x00400004u, cpu0->getPC());
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -334,7 +334,7 @@ void MIPS_TLTU() {
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x00400004u, cpu0->getPC());
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
@@ -364,7 +364,7 @@ void MIPS_TNE() {
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x00400004u, cpu0->getPC());
     cpu0->stepCPU(1);
-    ASSERT_EQUAL(0xBFC00380, cpu0->getPC());    // Status_bev = 1 vector
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());    // Status_bev = 1 vector
     
     // Status_bev = 0, 0x8000.0180
     reset();
