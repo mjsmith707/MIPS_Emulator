@@ -199,7 +199,7 @@ class Coprocessor0 {
         inline bool inSupervisorMode();
         inline bool inUserMode();
         uint32_t getRegister(uint8_t regnum, uint8_t sel);
-        void setRegister(uint8_t regnum, uint8_t sel, uint32_t value);
+        void setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value);
         void setRegisterHW(uint8_t regnum, uint8_t sel, uint32_t value);
         void resetRegister(uint8_t regnum, uint8_t sel);
 };

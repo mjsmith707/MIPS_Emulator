@@ -40,6 +40,9 @@ class CPU {
         #define JIMMMASK    0x03FFFFFF
         #define SELMASK     0x00000007
         #define COMASK      0x02000000
+        #define COSHIFT     25
+        #define SCMASK      0x00000020
+        #define SCSHIFT     5
     
         // Decoder Macros
         #define DECODE_OPCODE() opcode = (IR & OPCODEMASK) >> OPCODESHIFT
@@ -49,10 +52,11 @@ class CPU {
         #define DECODE_SHAMT() shamt = (IR & SHAMTMASK) >> SHAMTSHIFT
         #define DECODE_FUNCT() funct = IR & FUNCTMASK
         #define DECODE_IMM() imm = IR & IMMMASK
-        #define DECODE_IMMSE() immse = IR & IMMMASK; immse <<= 16; immse >>= 16;
+        #define DECODE_IMMSE() immse = IR & IMMMASK; immse <<= 16; immse >>= 16
         #define DECODE_JIMM() jimm = IR & JIMMMASK
         #define DECODE_SEL() sel = IR & SELMASK
-        #define DECODE_CO() (IR & COMASK)
+        #define DECODE_CO() co = (IR & COMASK) >> COSHIFT
+        #define DECODE_SC() sc = (IR & SCMASK) >> SCSHIFT
     
         // Dispatch macro
         #ifdef TEST_PROJECT
@@ -81,7 +85,7 @@ class CPU {
         uint64_t cycleCounter;
     
         // Very temporary thread signal
-        volatile uint32_t signal;
+        volatile uint8_t signal;
     
         // Program Counter and Instruction Register
         uint32_t PC;
@@ -103,6 +107,8 @@ class CPU {
         int32_t immse;
         uint32_t jimm;
         uint8_t sel;
+        uint8_t co;
+        uint8_t sc;
     
         // Temporary Variables for dispatchLoop
         // These need to be class members as Clang complains about
@@ -132,6 +138,7 @@ class CPU {
         // CPU Execution Functions
         void decodeAll();
         void dispatchLoop();
+        void serviceInterrupt();
     
         // Friendship sadly is not inherited
         // and exceptions necessarily need to modify private members.
@@ -166,11 +173,23 @@ class CPU {
         friend class TLBModifiedException;
         friend class CacheErrorDataException;
         friend class BusErrorDataException;
+        friend class InterruptException;
     
         // Prints out cpu and instruction information
-        void debugPrint();
+        std::string debugPrint();
     
     public:
+        // Interrupt Definitions
+        enum MIPSInterrupt {
+            HW0 = 2,
+            HW1 = 3,
+            HW2 = 4,
+            HW3 = 5,
+            HW4 = 6,
+            HW5 = 7,
+            HALT = 8,
+        };
+    
         CPU(ConsoleUI* conui, PMMU* memory);
         CPU(PMMU* memory);
     
@@ -181,7 +200,7 @@ class CPU {
         void start();
     
         // Sends a signal to the CPU
-        void sendSignal(uint32_t);
+        bool sendInterrupt(MIPSInterrupt);
     
         Coprocessor0* getControlCoprocessor();
     

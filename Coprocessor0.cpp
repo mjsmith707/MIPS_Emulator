@@ -336,7 +336,7 @@ uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
 }
 
 // Sets a coprocessor0 register in ISA/Software mode
-void Coprocessor0::setRegister(uint8_t regnum, uint8_t sel, uint32_t value) {
+void Coprocessor0::setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }

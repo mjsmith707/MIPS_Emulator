@@ -251,4 +251,11 @@ public:
     void execute(CPU*);
 };
 
+// Interrupt Exception
+class InterruptException : public MIPSException {
+public:
+    InterruptException();
+    void execute(CPU*);
+};
+
 #endif /* MIPSException_h */

@@ -18,6 +18,7 @@
 #include "ShiftTests.h"
 #include "TrapTests.h"
 #include "ObsoleteBranchTests.h"
+#include "PrivilegedInstructionTests.h"
 
 using namespace STest;
 
@@ -33,6 +34,7 @@ int main() {
     add_shift_tests();
     add_trap_tests();
     add_obsolete_branch_tests();
+    add_privileged_instruction_tests();
     
     run_tests();
 }

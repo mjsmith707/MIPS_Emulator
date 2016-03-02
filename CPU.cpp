@@ -110,8 +110,94 @@ void CPU::start() {
 
 // Public function to signal to the thread bound to the cpu
 // This is very very temporary until proper interrupts are in
-void CPU::sendSignal(uint32_t sig) {
-    signal = sig;
+bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
+    // Nonmaskable Interrupts
+    if (interrupt == MIPSInterrupt::HALT) {
+        signal = static_cast<uint8_t>(interrupt);
+        return true;
+    }
+    
+    // Check if interrupts enabled
+    // Status_ie = 1, Status_exl = 0, Status_erl = 0
+    uint32_t status = cop0.getRegister(CO0_STATUS);
+    if (((status & STATUS_IE) == 0)
+        || ((status & STATUS_EXL) > 0)
+        || ((status & STATUS_ERL) > 0)) {
+        return false;
+    }
+    
+    // Assert interrupt line
+    switch (interrupt) {
+        case MIPSInterrupt::HW0: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM2) > 0) {
+                // Update Cause
+                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP2);
+                signal = static_cast<uint8_t>(interrupt);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        case MIPSInterrupt::HW1: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM3) > 0) {
+                // Update Cause
+                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP3);
+                signal = static_cast<uint8_t>(interrupt);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        case MIPSInterrupt::HW2: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM4) > 0) {
+                // Update Cause
+                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP4);
+                signal = static_cast<uint8_t>(interrupt);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        case MIPSInterrupt::HW3: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM5) > 0) {
+                // Update Cause
+                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP5);
+                signal = static_cast<uint8_t>(interrupt);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        case MIPSInterrupt::HW4: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM6) > 0) {
+                // Update Cause
+                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP6);
+                signal = static_cast<uint8_t>(interrupt);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        case MIPSInterrupt::HW5: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM7) > 0) {
+                // Update Cause
+                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP7);
+                signal = static_cast<uint8_t>(interrupt);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        default: {
+            throw std::runtime_error("Invalid hardware interrupt number specified");
+        }
+    }
 }
 
 // Returns the control coprocessor associated with this CPU
@@ -218,7 +304,7 @@ void CPU::setSel(uint8_t val) {
 
 // Prints information about the cpu's execution per cycle
 // Also does on the fly disassembly
-void CPU::debugPrint() {
+std::string CPU::debugPrint() {
     decodeAll();
     std::stringstream ss;
     ss << "=== Decode ===" << std::endl
@@ -273,10 +359,7 @@ void CPU::debugPrint() {
         }
     }
     ss << "=== END Disassembly ===" << std::endl << std::endl;
-    if (consoleUI != nullptr) {
-        //consoleUI->sendConsoleMsg(ss.str());
-        std::cout << ss.str() << std::endl;
-    }
+    return ss.str();
 }
 
 // Fetches the next instruction into the program counter and instruction register
@@ -286,7 +369,7 @@ void CPU::debugPrint() {
     registers[0] = 0; \
 \
     if (signal != 0) { \
-        goto CPU_HALT; \
+        goto HANDLE_INTERRUPT; \
     } \
 \
     if (branch) { \
@@ -342,18 +425,18 @@ void CPU::dispatchLoop() {
         &&COP0,     // 0x10
         &&COP1,     // 0x11
         &&COP2,     // 0x12
-        &&INVALID_INSTRUCTION,          // 0x13
+        &&RESERVED_INSTRUCTION,          // 0x13
         &&BEQL,     // 0x14
         &&BNEL,     // 0x15
         &&BLEZL,    // 0x16
         &&BGTZL,    // 0x17
-        &&INVALID_INSTRUCTION,          // 0x18
-        &&INVALID_INSTRUCTION,          // 0x19
-        &&INVALID_INSTRUCTION,          // 0x1A
-        &&INVALID_INSTRUCTION,          // 0x1B
+        &&RESERVED_INSTRUCTION,          // 0x18
+        &&RESERVED_INSTRUCTION,          // 0x19
+        &&RESERVED_INSTRUCTION,          // 0x1A
+        &&RESERVED_INSTRUCTION,          // 0x1B
         &&SPECIAL2, // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
         &&SPECIAL3, // 0x1F
         &&LB,       // 0x20
         &&LH,       // 0x21
@@ -391,11 +474,11 @@ void CPU::dispatchLoop() {
     
     static void* functTable[64] = {
         &&SLL,      // 0x00
-        &&INVALID_INSTRUCTION,          // 0x01
+        &&RESERVED_INSTRUCTION,          // 0x01
         &&SRL,      // 0x02
         &&SRA,      // 0x03
         &&SLLV,     // 0x04
-        &&INVALID_INSTRUCTION,          // 0x05
+        &&RESERVED_INSTRUCTION,          // 0x05
         &&SRLV,     // 0x06
         &&SRAV,     // 0x07
         &&JR,       // 0x08
@@ -404,24 +487,24 @@ void CPU::dispatchLoop() {
         &&MOVN,     // 0x0B
         &&SYSCALL,  // 0x0C
         &&BREAK,    // 0x0D
-        &&INVALID_INSTRUCTION,          // 0x0E
+        &&RESERVED_INSTRUCTION,          // 0x0E
         &&SYNC,     // 0x0F
         &&MFHI,     // 0x10
         &&MTHI,     // 0x11
         &&MFLO,     // 0x12
         &&MTLO,     // 0x13
-        &&INVALID_INSTRUCTION,          // 0x14
-        &&INVALID_INSTRUCTION,          // 0x15
-        &&INVALID_INSTRUCTION,          // 0x16
-        &&INVALID_INSTRUCTION,          // 0x17
+        &&RESERVED_INSTRUCTION,          // 0x14
+        &&RESERVED_INSTRUCTION,          // 0x15
+        &&RESERVED_INSTRUCTION,          // 0x16
+        &&RESERVED_INSTRUCTION,          // 0x17
         &&MULT,     // 0x18
         &&MULTU,    // 0x19
         &&DIV,      // 0x1A
         &&DIVU,     // 0x1B
-        &&INVALID_INSTRUCTION,          // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
-        &&INVALID_INSTRUCTION,          // 0x1F
+        &&RESERVED_INSTRUCTION,          // 0x1C
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
+        &&RESERVED_INSTRUCTION,          // 0x1F
         &&ADD,      // 0x20
         &&ADDU,     // 0x21
         &&SUB,      // 0x22
@@ -430,164 +513,164 @@ void CPU::dispatchLoop() {
         &&OR,       // 0x25
         &&XOR,      // 0x26
         &&NOR,      // 0x27
-        &&INVALID_INSTRUCTION,          // 0x28
-        &&INVALID_INSTRUCTION,          // 0x29
+        &&RESERVED_INSTRUCTION,          // 0x28
+        &&RESERVED_INSTRUCTION,          // 0x29
         &&SLT,      // 0x2A
         &&SLTU,     // 0x2B
-        &&INVALID_INSTRUCTION,          // 0x2C
-        &&INVALID_INSTRUCTION,          // 0x2D
-        &&INVALID_INSTRUCTION,          // 0x2E
-        &&INVALID_INSTRUCTION,          // 0x2F
+        &&RESERVED_INSTRUCTION,          // 0x2C
+        &&RESERVED_INSTRUCTION,          // 0x2D
+        &&RESERVED_INSTRUCTION,          // 0x2E
+        &&RESERVED_INSTRUCTION,          // 0x2F
         &&TGE,      // 0x30
         &&TGEU,     // 0x31
         &&TLT,      // 0x32
         &&TLTU,     // 0x33
         &&TEQ,      // 0x34
-        &&INVALID_INSTRUCTION,          // 0x35
+        &&RESERVED_INSTRUCTION,          // 0x35
         &&TNE,      // 0x36
-        &&INVALID_INSTRUCTION,          // 0x37
-        &&INVALID_INSTRUCTION,          // 0x38
-        &&INVALID_INSTRUCTION,          // 0x39
-        &&INVALID_INSTRUCTION,          // 0x3A
-        &&INVALID_INSTRUCTION,          // 0x3B
-        &&INVALID_INSTRUCTION,          // 0x3C
-        &&INVALID_INSTRUCTION,          // 0x3D
-        &&INVALID_INSTRUCTION,          // 0x3E
-        &&INVALID_INSTRUCTION,          // 0x3F
+        &&RESERVED_INSTRUCTION,          // 0x37
+        &&RESERVED_INSTRUCTION,          // 0x38
+        &&RESERVED_INSTRUCTION,          // 0x39
+        &&RESERVED_INSTRUCTION,          // 0x3A
+        &&RESERVED_INSTRUCTION,          // 0x3B
+        &&RESERVED_INSTRUCTION,          // 0x3C
+        &&RESERVED_INSTRUCTION,          // 0x3D
+        &&RESERVED_INSTRUCTION,          // 0x3E
+        &&RESERVED_INSTRUCTION,          // 0x3F
     };
     
     static void* special2Table[64] {
         &&MADD,     // 0x00
         &&MADDU,    // 0x01
         &&MUL,      // 0x02
-        &&INVALID_INSTRUCTION,          // 0x03
+        &&RESERVED_INSTRUCTION,          // 0x03
         &&MSUB,     // 0x04
         &&MSUBU,    // 0x05
-        &&INVALID_INSTRUCTION,          // 0x06
-        &&INVALID_INSTRUCTION,          // 0x07
-        &&INVALID_INSTRUCTION,          // 0x08
-        &&INVALID_INSTRUCTION,          // 0x09
-        &&INVALID_INSTRUCTION,          // 0x0A
-        &&INVALID_INSTRUCTION,          // 0x0B
-        &&INVALID_INSTRUCTION,          // 0x0C
-        &&INVALID_INSTRUCTION,          // 0x0D
-        &&INVALID_INSTRUCTION,          // 0x0E
-        &&INVALID_INSTRUCTION,          // 0x0F
-        &&INVALID_INSTRUCTION,          // 0x10
-        &&INVALID_INSTRUCTION,          // 0x11
-        &&INVALID_INSTRUCTION,          // 0x12
-        &&INVALID_INSTRUCTION,          // 0x13
-        &&INVALID_INSTRUCTION,          // 0x14
-        &&INVALID_INSTRUCTION,          // 0x15
-        &&INVALID_INSTRUCTION,          // 0x16
-        &&INVALID_INSTRUCTION,          // 0x17
-        &&INVALID_INSTRUCTION,          // 0x18
-        &&INVALID_INSTRUCTION,          // 0x19
-        &&INVALID_INSTRUCTION,          // 0x1A
-        &&INVALID_INSTRUCTION,          // 0x1B
-        &&INVALID_INSTRUCTION,          // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
-        &&INVALID_INSTRUCTION,          // 0x1F
+        &&RESERVED_INSTRUCTION,          // 0x06
+        &&RESERVED_INSTRUCTION,          // 0x07
+        &&RESERVED_INSTRUCTION,          // 0x08
+        &&RESERVED_INSTRUCTION,          // 0x09
+        &&RESERVED_INSTRUCTION,          // 0x0A
+        &&RESERVED_INSTRUCTION,          // 0x0B
+        &&RESERVED_INSTRUCTION,          // 0x0C
+        &&RESERVED_INSTRUCTION,          // 0x0D
+        &&RESERVED_INSTRUCTION,          // 0x0E
+        &&RESERVED_INSTRUCTION,          // 0x0F
+        &&RESERVED_INSTRUCTION,          // 0x10
+        &&RESERVED_INSTRUCTION,          // 0x11
+        &&RESERVED_INSTRUCTION,          // 0x12
+        &&RESERVED_INSTRUCTION,          // 0x13
+        &&RESERVED_INSTRUCTION,          // 0x14
+        &&RESERVED_INSTRUCTION,          // 0x15
+        &&RESERVED_INSTRUCTION,          // 0x16
+        &&RESERVED_INSTRUCTION,          // 0x17
+        &&RESERVED_INSTRUCTION,          // 0x18
+        &&RESERVED_INSTRUCTION,          // 0x19
+        &&RESERVED_INSTRUCTION,          // 0x1A
+        &&RESERVED_INSTRUCTION,          // 0x1B
+        &&RESERVED_INSTRUCTION,          // 0x1C
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
+        &&RESERVED_INSTRUCTION,          // 0x1F
         &&CLZ,      // 0x20
         &&CLO,      // 0x21
-        &&INVALID_INSTRUCTION,          // 0x22
-        &&INVALID_INSTRUCTION,          // 0x23
-        &&INVALID_INSTRUCTION,          // 0x24
-        &&INVALID_INSTRUCTION,          // 0x25
-        &&INVALID_INSTRUCTION,          // 0x26
-        &&INVALID_INSTRUCTION,          // 0x27
-        &&INVALID_INSTRUCTION,          // 0x28
-        &&INVALID_INSTRUCTION,          // 0x29
-        &&INVALID_INSTRUCTION,          // 0x2A
-        &&INVALID_INSTRUCTION,          // 0x2B
-        &&INVALID_INSTRUCTION,          // 0x2C
-        &&INVALID_INSTRUCTION,          // 0x2D
-        &&INVALID_INSTRUCTION,          // 0x2E
-        &&INVALID_INSTRUCTION,          // 0x2F
-        &&INVALID_INSTRUCTION,          // 0x30
-        &&INVALID_INSTRUCTION,          // 0x31
-        &&INVALID_INSTRUCTION,          // 0x32
-        &&INVALID_INSTRUCTION,          // 0x33
-        &&INVALID_INSTRUCTION,          // 0x34
-        &&INVALID_INSTRUCTION,          // 0x35
-        &&INVALID_INSTRUCTION,          // 0x36
-        &&INVALID_INSTRUCTION,          // 0x37
-        &&INVALID_INSTRUCTION,          // 0x38
-        &&INVALID_INSTRUCTION,          // 0x39
-        &&INVALID_INSTRUCTION,          // 0x3A
-        &&INVALID_INSTRUCTION,          // 0x3B
-        &&INVALID_INSTRUCTION,          // 0x3C
-        &&INVALID_INSTRUCTION,          // 0x3D
-        &&INVALID_INSTRUCTION,          // 0x3E
+        &&RESERVED_INSTRUCTION,          // 0x22
+        &&RESERVED_INSTRUCTION,          // 0x23
+        &&RESERVED_INSTRUCTION,          // 0x24
+        &&RESERVED_INSTRUCTION,          // 0x25
+        &&RESERVED_INSTRUCTION,          // 0x26
+        &&RESERVED_INSTRUCTION,          // 0x27
+        &&RESERVED_INSTRUCTION,          // 0x28
+        &&RESERVED_INSTRUCTION,          // 0x29
+        &&RESERVED_INSTRUCTION,          // 0x2A
+        &&RESERVED_INSTRUCTION,          // 0x2B
+        &&RESERVED_INSTRUCTION,          // 0x2C
+        &&RESERVED_INSTRUCTION,          // 0x2D
+        &&RESERVED_INSTRUCTION,          // 0x2E
+        &&RESERVED_INSTRUCTION,          // 0x2F
+        &&RESERVED_INSTRUCTION,          // 0x30
+        &&RESERVED_INSTRUCTION,          // 0x31
+        &&RESERVED_INSTRUCTION,          // 0x32
+        &&RESERVED_INSTRUCTION,          // 0x33
+        &&RESERVED_INSTRUCTION,          // 0x34
+        &&RESERVED_INSTRUCTION,          // 0x35
+        &&RESERVED_INSTRUCTION,          // 0x36
+        &&RESERVED_INSTRUCTION,          // 0x37
+        &&RESERVED_INSTRUCTION,          // 0x38
+        &&RESERVED_INSTRUCTION,          // 0x39
+        &&RESERVED_INSTRUCTION,          // 0x3A
+        &&RESERVED_INSTRUCTION,          // 0x3B
+        &&RESERVED_INSTRUCTION,          // 0x3C
+        &&RESERVED_INSTRUCTION,          // 0x3D
+        &&RESERVED_INSTRUCTION,          // 0x3E
         &&SDBBP,    // 0x3F
     };
     
     static void* special3Table[64] {
         &&EXT,      // 0x00
-        &&INVALID_INSTRUCTION,          // 0x01
-        &&INVALID_INSTRUCTION,          // 0x02
-        &&INVALID_INSTRUCTION,          // 0x03
+        &&RESERVED_INSTRUCTION,          // 0x01
+        &&RESERVED_INSTRUCTION,          // 0x02
+        &&RESERVED_INSTRUCTION,          // 0x03
         &&INS,      // 0x04
-        &&INVALID_INSTRUCTION,          // 0x05
-        &&INVALID_INSTRUCTION,          // 0x06
-        &&INVALID_INSTRUCTION,          // 0x07
-        &&INVALID_INSTRUCTION,          // 0x08
-        &&INVALID_INSTRUCTION,          // 0x09
-        &&INVALID_INSTRUCTION,          // 0x0A
-        &&INVALID_INSTRUCTION,          // 0x0B
-        &&INVALID_INSTRUCTION,          // 0x0C
-        &&INVALID_INSTRUCTION,          // 0x0D
-        &&INVALID_INSTRUCTION,          // 0x0E
-        &&INVALID_INSTRUCTION,          // 0x0F
-        &&INVALID_INSTRUCTION,          // 0x10
-        &&INVALID_INSTRUCTION,          // 0x11
-        &&INVALID_INSTRUCTION,          // 0x12
-        &&INVALID_INSTRUCTION,          // 0x13
-        &&INVALID_INSTRUCTION,          // 0x14
-        &&INVALID_INSTRUCTION,          // 0x15
-        &&INVALID_INSTRUCTION,          // 0x16
-        &&INVALID_INSTRUCTION,          // 0x17
-        &&INVALID_INSTRUCTION,          // 0x18
-        &&INVALID_INSTRUCTION,          // 0x19
-        &&INVALID_INSTRUCTION,          // 0x1A
-        &&INVALID_INSTRUCTION,          // 0x1B
-        &&INVALID_INSTRUCTION,          // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
-        &&INVALID_INSTRUCTION,          // 0x1F
+        &&RESERVED_INSTRUCTION,          // 0x05
+        &&RESERVED_INSTRUCTION,          // 0x06
+        &&RESERVED_INSTRUCTION,          // 0x07
+        &&RESERVED_INSTRUCTION,          // 0x08
+        &&RESERVED_INSTRUCTION,          // 0x09
+        &&RESERVED_INSTRUCTION,          // 0x0A
+        &&RESERVED_INSTRUCTION,          // 0x0B
+        &&RESERVED_INSTRUCTION,          // 0x0C
+        &&RESERVED_INSTRUCTION,          // 0x0D
+        &&RESERVED_INSTRUCTION,          // 0x0E
+        &&RESERVED_INSTRUCTION,          // 0x0F
+        &&RESERVED_INSTRUCTION,          // 0x10
+        &&RESERVED_INSTRUCTION,          // 0x11
+        &&RESERVED_INSTRUCTION,          // 0x12
+        &&RESERVED_INSTRUCTION,          // 0x13
+        &&RESERVED_INSTRUCTION,          // 0x14
+        &&RESERVED_INSTRUCTION,          // 0x15
+        &&RESERVED_INSTRUCTION,          // 0x16
+        &&RESERVED_INSTRUCTION,          // 0x17
+        &&RESERVED_INSTRUCTION,          // 0x18
+        &&RESERVED_INSTRUCTION,          // 0x19
+        &&RESERVED_INSTRUCTION,          // 0x1A
+        &&RESERVED_INSTRUCTION,          // 0x1B
+        &&RESERVED_INSTRUCTION,          // 0x1C
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
+        &&RESERVED_INSTRUCTION,          // 0x1F
         &&BSHFL,    // 0x20
-        &&INVALID_INSTRUCTION,          // 0x21
-        &&INVALID_INSTRUCTION,          // 0x22
-        &&INVALID_INSTRUCTION,          // 0x23
-        &&INVALID_INSTRUCTION,          // 0x24
-        &&INVALID_INSTRUCTION,          // 0x25
-        &&INVALID_INSTRUCTION,          // 0x26
-        &&INVALID_INSTRUCTION,          // 0x27
-        &&INVALID_INSTRUCTION,          // 0x28
-        &&INVALID_INSTRUCTION,          // 0x29
-        &&INVALID_INSTRUCTION,          // 0x2A
-        &&INVALID_INSTRUCTION,          // 0x2B
-        &&INVALID_INSTRUCTION,          // 0x2C
-        &&INVALID_INSTRUCTION,          // 0x2D
-        &&INVALID_INSTRUCTION,          // 0x2E
-        &&INVALID_INSTRUCTION,          // 0x2F
-        &&INVALID_INSTRUCTION,          // 0x30
-        &&INVALID_INSTRUCTION,          // 0x31
-        &&INVALID_INSTRUCTION,          // 0x32
-        &&INVALID_INSTRUCTION,          // 0x33
-        &&INVALID_INSTRUCTION,          // 0x34
-        &&INVALID_INSTRUCTION,          // 0x35
-        &&INVALID_INSTRUCTION,          // 0x36
-        &&INVALID_INSTRUCTION,          // 0x37
-        &&INVALID_INSTRUCTION,          // 0x38
-        &&INVALID_INSTRUCTION,          // 0x39
-        &&INVALID_INSTRUCTION,          // 0x3A
-        &&INVALID_INSTRUCTION,          // 0x3B
-        &&INVALID_INSTRUCTION,          // 0x3C
-        &&INVALID_INSTRUCTION,          // 0x3D
-        &&INVALID_INSTRUCTION,          // 0x3E
-        &&INVALID_INSTRUCTION,          // 0x3F
+        &&RESERVED_INSTRUCTION,          // 0x21
+        &&RESERVED_INSTRUCTION,          // 0x22
+        &&RESERVED_INSTRUCTION,          // 0x23
+        &&RESERVED_INSTRUCTION,          // 0x24
+        &&RESERVED_INSTRUCTION,          // 0x25
+        &&RESERVED_INSTRUCTION,          // 0x26
+        &&RESERVED_INSTRUCTION,          // 0x27
+        &&RESERVED_INSTRUCTION,          // 0x28
+        &&RESERVED_INSTRUCTION,          // 0x29
+        &&RESERVED_INSTRUCTION,          // 0x2A
+        &&RESERVED_INSTRUCTION,          // 0x2B
+        &&RESERVED_INSTRUCTION,          // 0x2C
+        &&RESERVED_INSTRUCTION,          // 0x2D
+        &&RESERVED_INSTRUCTION,          // 0x2E
+        &&RESERVED_INSTRUCTION,          // 0x2F
+        &&RESERVED_INSTRUCTION,          // 0x30
+        &&RESERVED_INSTRUCTION,          // 0x31
+        &&RESERVED_INSTRUCTION,          // 0x32
+        &&RESERVED_INSTRUCTION,          // 0x33
+        &&RESERVED_INSTRUCTION,          // 0x34
+        &&RESERVED_INSTRUCTION,          // 0x35
+        &&RESERVED_INSTRUCTION,          // 0x36
+        &&RESERVED_INSTRUCTION,          // 0x37
+        &&RESERVED_INSTRUCTION,          // 0x38
+        &&RESERVED_INSTRUCTION,          // 0x39
+        &&RESERVED_INSTRUCTION,          // 0x3A
+        &&RESERVED_INSTRUCTION,          // 0x3B
+        &&RESERVED_INSTRUCTION,          // 0x3C
+        &&RESERVED_INSTRUCTION,          // 0x3D
+        &&RESERVED_INSTRUCTION,          // 0x3E
+        &&RESERVED_INSTRUCTION,          // 0x3F
     };
     
     static void* regimmTable[32] {
@@ -595,109 +678,110 @@ void CPU::dispatchLoop() {
         &&BGEZ,     // 0x01
         &&BLTZL,    // 0x02
         &&BGEZL,    // 0x03
-        &&INVALID_INSTRUCTION,          // 0x04
-        &&INVALID_INSTRUCTION,          // 0x05
-        &&INVALID_INSTRUCTION,          // 0x06
-        &&INVALID_INSTRUCTION,          // 0x07
+        &&RESERVED_INSTRUCTION,          // 0x04
+        &&RESERVED_INSTRUCTION,          // 0x05
+        &&RESERVED_INSTRUCTION,          // 0x06
+        &&RESERVED_INSTRUCTION,          // 0x07
         &&TGEI,     // 0x08
         &&TGEIU,    // 0x09
         &&TLTI,     // 0x0A
         &&TLTIU,    // 0x0B
         &&TEQI,     // 0x0C
-        &&INVALID_INSTRUCTION,          // 0x0D
+        &&RESERVED_INSTRUCTION,          // 0x0D
         &&TNEI,     // 0x0E
-        &&INVALID_INSTRUCTION,          // 0x0F
+        &&RESERVED_INSTRUCTION,          // 0x0F
         &&BLTZAL,   // 0x10
         &&BGEZAL,   // 0x11
         &&BLTZALL,  // 0x12
         &&BGEZALL,  // 0x13
-        &&INVALID_INSTRUCTION,          // 0x14
-        &&INVALID_INSTRUCTION,          // 0x15
-        &&INVALID_INSTRUCTION,          // 0x16
-        &&INVALID_INSTRUCTION,          // 0x17
-        &&INVALID_INSTRUCTION,          // 0x18
-        &&INVALID_INSTRUCTION,          // 0x19
-        &&INVALID_INSTRUCTION,          // 0x1A
-        &&INVALID_INSTRUCTION,          // 0x1B
-        &&INVALID_INSTRUCTION,          // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
-        &&INVALID_INSTRUCTION,          // 0x1F
+        &&RESERVED_INSTRUCTION,          // 0x14
+        &&RESERVED_INSTRUCTION,          // 0x15
+        &&RESERVED_INSTRUCTION,          // 0x16
+        &&RESERVED_INSTRUCTION,          // 0x17
+        &&RESERVED_INSTRUCTION,          // 0x18
+        &&RESERVED_INSTRUCTION,          // 0x19
+        &&RESERVED_INSTRUCTION,          // 0x1A
+        &&RESERVED_INSTRUCTION,          // 0x1B
+        &&RESERVED_INSTRUCTION,          // 0x1C
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
+        &&RESERVED_INSTRUCTION,          // 0x1F
     };
     
     static void* cop0Table[32] {
         &&MFC0,     // 0x00
-        &&INVALID_INSTRUCTION,          // 0x01
-        &&INVALID_INSTRUCTION,          // 0x02
-        &&INVALID_INSTRUCTION,          // 0x03
+        &&RESERVED_INSTRUCTION,          // 0x01
+        &&RESERVED_INSTRUCTION,          // 0x02
+        &&RESERVED_INSTRUCTION,          // 0x03
         &&MTC0,     // 0x04
-        &&INVALID_INSTRUCTION,          // 0x05
-        &&INVALID_INSTRUCTION,          // 0x06
-        &&INVALID_INSTRUCTION,          // 0x07
-        &&INVALID_INSTRUCTION,          // 0x08
-        &&INVALID_INSTRUCTION,          // 0x09
-        &&INVALID_INSTRUCTION,          // 0x0A
-        &&DI,       // 0x0B
-        &&INVALID_INSTRUCTION,          // 0x0C
-        &&INVALID_INSTRUCTION,          // 0x0D
-        &&INVALID_INSTRUCTION,          // 0x0E
-        &&INVALID_INSTRUCTION,          // 0x0F
-        &&INVALID_INSTRUCTION,          // 0x10
-        &&INVALID_INSTRUCTION,          // 0x11
-        &&INVALID_INSTRUCTION,          // 0x12
-        &&INVALID_INSTRUCTION,          // 0x13
-        &&INVALID_INSTRUCTION,          // 0x14
-        &&INVALID_INSTRUCTION,          // 0x15
-        &&INVALID_INSTRUCTION,          // 0x16
-        &&INVALID_INSTRUCTION,          // 0x17
-        &&ERET,     // 0x18
-        &&INVALID_INSTRUCTION,          // 0x19
-        &&INVALID_INSTRUCTION,          // 0x1A
-        &&INVALID_INSTRUCTION,          // 0x1B
-        &&INVALID_INSTRUCTION,          // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
-        &&DERET,    // 0x1F
+        &&RESERVED_INSTRUCTION,          // 0x05
+        &&RESERVED_INSTRUCTION,          // 0x06
+        &&RESERVED_INSTRUCTION,          // 0x07
+        &&RESERVED_INSTRUCTION,          // 0x08
+        &&RESERVED_INSTRUCTION,          // 0x09
+        &&RESERVED_INSTRUCTION,          // 0x0A
+        &&MFMC0,       // 0x0B
+        &&RESERVED_INSTRUCTION,          // 0x0C
+        &&RESERVED_INSTRUCTION,          // 0x0D
+        &&RESERVED_INSTRUCTION,          // 0x0E
+        &&RESERVED_INSTRUCTION,          // 0x0F
+        &&RESERVED_INSTRUCTION,          // 0x10
+        &&RESERVED_INSTRUCTION,          // 0x11
+        &&RESERVED_INSTRUCTION,          // 0x12
+        &&RESERVED_INSTRUCTION,          // 0x13
+        &&RESERVED_INSTRUCTION,          // 0x14
+        &&RESERVED_INSTRUCTION,          // 0x15
+        &&RESERVED_INSTRUCTION,          // 0x16
+        &&RESERVED_INSTRUCTION,          // 0x17
+        &&RESERVED_INSTRUCTION,          // 0x18
+        &&RESERVED_INSTRUCTION,          // 0x19
+        &&RESERVED_INSTRUCTION,          // 0x1A
+        &&RESERVED_INSTRUCTION,          // 0x1B
+        &&RESERVED_INSTRUCTION,          // 0x1C
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
+        &&RESERVED_INSTRUCTION,          // 0x1F
     };
     
     static void* cop0COTable[32] {
-        &&INVALID_INSTRUCTION,          // 0x00
-        &&INVALID_INSTRUCTION,          // 0x01
-        &&INVALID_INSTRUCTION,          // 0x02
-        &&INVALID_INSTRUCTION,          // 0x03
-        &&INVALID_INSTRUCTION,          // 0x04
-        &&INVALID_INSTRUCTION,          // 0x05
-        &&INVALID_INSTRUCTION,          // 0x06
-        &&INVALID_INSTRUCTION,          // 0x07
-        &&INVALID_INSTRUCTION,          // 0x08
-        &&INVALID_INSTRUCTION,          // 0x09
-        &&INVALID_INSTRUCTION,          // 0x0A
-        &&INVALID_INSTRUCTION,          // 0x0B
-        &&INVALID_INSTRUCTION,          // 0x0C
-        &&INVALID_INSTRUCTION,          // 0x0D
-        &&INVALID_INSTRUCTION,          // 0x0E
-        &&INVALID_INSTRUCTION,          // 0x0F
-        &&INVALID_INSTRUCTION,          // 0x10
-        &&INVALID_INSTRUCTION,          // 0x11
-        &&INVALID_INSTRUCTION,          // 0x12
-        &&INVALID_INSTRUCTION,          // 0x13
-        &&INVALID_INSTRUCTION,          // 0x14
-        &&INVALID_INSTRUCTION,          // 0x15
-        &&INVALID_INSTRUCTION,          // 0x16
-        &&INVALID_INSTRUCTION,          // 0x17
-        &&INVALID_INSTRUCTION,          // 0x18
-        &&INVALID_INSTRUCTION,          // 0x19
-        &&INVALID_INSTRUCTION,          // 0x1A
-        &&INVALID_INSTRUCTION,          // 0x1B
-        &&INVALID_INSTRUCTION,          // 0x1C
-        &&INVALID_INSTRUCTION,          // 0x1D
-        &&INVALID_INSTRUCTION,          // 0x1E
-        &&INVALID_INSTRUCTION,          // 0x1F
+        &&RESERVED_INSTRUCTION,          // 0x00
+        &&RESERVED_INSTRUCTION,          // 0x01
+        &&RESERVED_INSTRUCTION,          // 0x02
+        &&RESERVED_INSTRUCTION,          // 0x03
+        &&RESERVED_INSTRUCTION,          // 0x04
+        &&RESERVED_INSTRUCTION,          // 0x05
+        &&RESERVED_INSTRUCTION,          // 0x06
+        &&RESERVED_INSTRUCTION,          // 0x07
+        &&RESERVED_INSTRUCTION,          // 0x08
+        &&RESERVED_INSTRUCTION,          // 0x09
+        &&RESERVED_INSTRUCTION,          // 0x0A
+        &&RESERVED_INSTRUCTION,          // 0x0B
+        &&RESERVED_INSTRUCTION,          // 0x0C
+        &&RESERVED_INSTRUCTION,          // 0x0D
+        &&RESERVED_INSTRUCTION,          // 0x0E
+        &&RESERVED_INSTRUCTION,          // 0x0F
+        &&RESERVED_INSTRUCTION,          // 0x10
+        &&RESERVED_INSTRUCTION,          // 0x11
+        &&RESERVED_INSTRUCTION,          // 0x12
+        &&RESERVED_INSTRUCTION,          // 0x13
+        &&RESERVED_INSTRUCTION,          // 0x14
+        &&RESERVED_INSTRUCTION,          // 0x15
+        &&RESERVED_INSTRUCTION,          // 0x16
+        &&RESERVED_INSTRUCTION,          // 0x17
+        &&ERET,     // 0x18
+        &&RESERVED_INSTRUCTION,          // 0x19
+        &&RESERVED_INSTRUCTION,          // 0x1A
+        &&RESERVED_INSTRUCTION,          // 0x1B
+        &&RESERVED_INSTRUCTION,          // 0x1C
+        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&RESERVED_INSTRUCTION,          // 0x1E
+        &&DERET,    // 0x1F
     };
     
     // Begin Dispatch Loop
 dispatchStart:
     try {
+        exceptRestartLoop = false;
         
     #ifdef TEST_PROJECT
         fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
@@ -863,24 +947,24 @@ dispatchStart:
         
     // 0x10 COP0 Instructions
     COP0:
-        if (DECODE_CO() == 0) {
+        DECODE_CO();
+        if (co == 0) {
             DECODE_RS();
             goto *cop0Table[rs];
         }
         else {
             DECODE_FUNCT();
-            
+            goto *cop0COTable[funct];
         }
     
     // 0x11 COP1
     COP1:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        throw CoprocessorUnusableException();
     
     // 0x12 COP2
     COP2:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        throw CoprocessorUnusableException();
+        
     // 0x13
     
     // 0x14 Branch on Equal Likely
@@ -1945,18 +2029,45 @@ dispatchStart:
         DECODE_SEL();
         DECODE_RT();
         DECODE_RD();
-        cop0.setRegister(rd, sel, registers[rt]);
+        cop0.setRegisterSW(rd, sel, registers[rt]);
         DISPATCH();
     
-    // 0x0B Disable Interrupts
-    DI:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+    // 0x0B
+    MFMC0:
+        DECODE_SC();
+        if (sc == 0) {
+            // DI: Disable Interrupts
+            DECODE_RT();
+            registers[rt] = cop0.getRegister(CO0_STATUS);
+            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) & ~(STATUS_IE));
+        }
+        else {
+            // EI: Enable Interrupts
+            DECODE_RT();
+            registers[rt] = cop0.getRegister(CO0_STATUS);
+            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) | STATUS_IE);
+        }
+        DISPATCH();
         
     // 0x18 Exception Return
     ERET:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        tempu32 = 0;
+        // If Status_erl = 1
+        if ((cop0.getRegister(CO0_STATUS) & STATUS_ERL) > 0) {
+            tempu32 = cop0.getRegister(CO0_ERROREPC);
+            // Status_erl = 0
+            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) & ~(STATUS_ERL));
+        }
+        else {
+            tempu32 = cop0.getRegister(CO0_EPC);
+            // Status_exl = 0
+            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) & ~(STATUS_EXL));
+            // FIXME: Shadow Registers not implemented (optional)
+        }
+        // MIPS16e not implemented (optional)
+        PC = tempu32;
+        // FIXME: LLbit = 0
+        DISPATCH();
     
     // 0x1F Debug Exception Return
     DERET:
@@ -1968,29 +2079,28 @@ dispatchStart:
     
     // Miscellaneous
     HANDLE_INTERRUPT:
-        //goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
-    
-    HANDLE_TRAP:
-    
-    INVALID_INSTRUCTION:
-        if (consoleUI != nullptr) {
-            consoleUI->sendConsoleMsg("ERROR: Invalid instruction!");
-            debugPrint();
+        if (signal == MIPSInterrupt::HALT) {
+            goto CPU_HALT;
         }
-        return;
+        else {
+            serviceInterrupt();
+            DISPATCH();
+        }
+    
+    RESERVED_INSTRUCTION:
+        throw ReservedInstructionException();
     
     UNIMPLEMENTED_INSTRUCTION:
         if (consoleUI != nullptr) {
             consoleUI->sendConsoleMsg("ERROR: Unimplemented instruction!");
-            debugPrint();
+            consoleUI->sendConsoleMsg(debugPrint());
         }
         return;
     
     CPU_HALT:
         if (consoleUI != nullptr) {
             consoleUI->sendConsoleMsg("CPU Halted.");
-            debugPrint();
+            std::cout << debugPrint() << std::endl;
         }
         return;
         
@@ -2010,7 +2120,14 @@ dispatchStart:
     }
     // MIPS Exceptions
     catch (MIPSException& e) {
+        // Execute exception handler
         e.execute(this);
+        
+    #ifdef TEST_PROJECT
+        exceptRestartLoop = false;
+    #else
+        exceptRestartLoop = true;
+    #endif
     }
     
     // ISO C++ forbids gotos into a try-catch block
@@ -2023,3 +2140,62 @@ dispatchStart:
     }
 }
 
+// CPU Thread interrupt servicing
+void CPU::serviceInterrupt() {
+    uint8_t tempsig = signal;
+    signal = 0;
+    // Check if masked
+    switch (tempsig) {
+        case MIPSInterrupt::HW0: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM2) > 0) {
+                throw MIPSInterrupt();
+            }
+            else {
+                return;
+            }
+        }
+        case MIPSInterrupt::HW1: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM3) > 0) {
+                throw MIPSInterrupt();
+            }
+            else {
+                return;
+            }
+        }
+        case MIPSInterrupt::HW2: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM4) > 0) {
+                throw MIPSInterrupt();
+            }
+            else {
+                return;
+            }
+        }
+        case MIPSInterrupt::HW3: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM5) > 0) {
+                throw MIPSInterrupt();
+            }
+            else {
+                return;
+            }
+        }
+        case MIPSInterrupt::HW4: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM6) > 0) {
+                throw MIPSInterrupt();
+            }
+            else {
+                return;
+            }
+        }
+        case MIPSInterrupt::HW5: {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM7) > 0) {
+                throw MIPSInterrupt();
+            }
+            else {
+                return;
+            }
+        }
+        default: {
+            throw std::runtime_error("serviceInterrupt() got an invalid signal");
+        }
+    }
+}

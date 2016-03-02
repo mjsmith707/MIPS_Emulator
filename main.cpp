@@ -53,7 +53,7 @@ int main(int argc, const char * argv[]) {
     consoleUI->waitForInput();
     
     // Stop CPU
-    cpu0->sendSignal(1);
+    cpu0->sendInterrupt(CPU::MIPSInterrupt::HALT);
     cpu0_thread.join();
     
     // Cleanup

@@ -195,7 +195,6 @@ void ColdResetException::execute(CPU* cpu) {
     
     // Set Program Counter
     cpu->PC = 0xBFC00000;
-    cpu->exceptRestartLoop = true;
 }
 
 // Cold Reset Exception
@@ -233,7 +232,6 @@ void SoftResetException::execute(CPU* cpu) {
     
     // Set Program Counter
     cpu->PC = 0xBFC00000;
-    cpu->exceptRestartLoop = true;
 }
 
 // Nonmaskable Interrupt Exception
@@ -256,7 +254,6 @@ void NonmaskableInterruptException::execute(CPU* cpu) {
     
     // Set Program Counter
     cpu->PC = 0xBFC00000;
-    cpu->exceptRestartLoop = true;
 }
 
 // Machine Check Exception
@@ -518,4 +515,12 @@ BusErrorDataException::BusErrorDataException() {
 
 void BusErrorDataException::execute(CPU* cpu) {
     generalException(cpu, ExceptionType::None, ExceptionCode::DBE);
+}
+
+// Interrupt Exception
+InterruptException::InterruptException() {
+}
+
+void InterruptException::execute(CPU* cpu) {
+    generalException(cpu, ExceptionType::Interrupt, ExceptionCode::Int);
 }

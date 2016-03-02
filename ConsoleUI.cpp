@@ -60,7 +60,7 @@ void ConsoleUI::waitForInput() {
         while (!msgQueue.isEmpty()) {
             // This will need to be split into a new window at some point but for now it will have to do
             std::string msg = msgQueue.pop();
-            printw("LOM> %s", msg.c_str());
+            printw("LOM> %s\n", msg.c_str());
             refresh();
         }
     }
@@ -69,7 +69,7 @@ void ConsoleUI::waitForInput() {
     while (!msgQueue.isEmpty()) {
         // This will need to be split into a new window at some point but for now it will have to do
         std::string msg = msgQueue.pop();
-        printw("LOM> %s", msg.c_str());
+        printw("LOM> %s\n", msg.c_str());
         refresh();
     }
     
