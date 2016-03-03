@@ -62,7 +62,7 @@ class CPU {
         #ifdef TEST_PROJECT
             #define DISPATCH() return;
         #else
-            #define DISPATCH() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+            #define DISPATCH() updateISARep() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
         #endif
     
         // Pointer to ConsoleUI for stdout debugging

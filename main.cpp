@@ -47,7 +47,13 @@ int main(int argc, const char * argv[]) {
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
-    //std::this_thread::sleep_for(std::chrono::seconds(60));
+    //std::this_thread::sleep_for(std::chrono::seconds(1));
+    //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW0);
+    //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW1);
+    //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW2);
+    //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW3);
+    //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW4);
+    //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW5);
     
     // Wait for console input
     consoleUI->waitForInput();

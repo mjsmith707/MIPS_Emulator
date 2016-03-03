@@ -111,18 +111,17 @@ void CPU::start() {
 // Public function to signal to the thread bound to the cpu
 // This is very very temporary until proper interrupts are in
 bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
-    // Nonmaskable Interrupts
+    // Nonmaskable Interrupts/Thread signaling
     if (interrupt == MIPSInterrupt::HALT) {
+        // Assert all interrupt lines
+        cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_RIPL);
         signal = static_cast<uint8_t>(interrupt);
         return true;
     }
     
     // Check if interrupts enabled
     // Status_ie = 1, Status_exl = 0, Status_erl = 0
-    uint32_t status = cop0.getRegister(CO0_STATUS);
-    if (((status & STATUS_IE) == 0)
-        || ((status & STATUS_EXL) > 0)
-        || ((status & STATUS_ERL) > 0)) {
+    if (!cop0.interruptsEnabled()) {
         return false;
     }
     
@@ -132,72 +131,55 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM2) > 0) {
                 // Update Cause
                 cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP2);
-                signal = static_cast<uint8_t>(interrupt);
                 return true;
             }
-            else {
-                return false;
-            }
+            break;
         }
         case MIPSInterrupt::HW1: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM3) > 0) {
                 // Update Cause
                 cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP3);
-                signal = static_cast<uint8_t>(interrupt);
                 return true;
             }
-            else {
-                return false;
-            }
+            break;
         }
         case MIPSInterrupt::HW2: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM4) > 0) {
                 // Update Cause
                 cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP4);
-                signal = static_cast<uint8_t>(interrupt);
                 return true;
             }
-            else {
-                return false;
-            }
+            break;
         }
         case MIPSInterrupt::HW3: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM5) > 0) {
                 // Update Cause
                 cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP5);
-                signal = static_cast<uint8_t>(interrupt);
                 return true;
             }
-            else {
-                return false;
-            }
+            break;
         }
         case MIPSInterrupt::HW4: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM6) > 0) {
                 // Update Cause
                 cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP6);
-                signal = static_cast<uint8_t>(interrupt);
                 return true;
             }
-            else {
-                return false;
-            }
+            break;
         }
         case MIPSInterrupt::HW5: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM7) > 0) {
                 // Update Cause
                 cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP7);
-                signal = static_cast<uint8_t>(interrupt);
                 return true;
             }
-            else {
-                return false;
-            }
+            break;
         }
         default: {
             throw std::runtime_error("Invalid hardware interrupt number specified");
         }
     }
+    return false;
 }
 
 // Returns the control coprocessor associated with this CPU
@@ -362,16 +344,21 @@ std::string CPU::debugPrint() {
     return ss.str();
 }
 
-// Fetches the next instruction into the program counter and instruction register
-#define fetch()  \
+// Checks if there is a pending interrupt
+// If so then do some further processing
+#define checkForInts()  \
+    if ((cop0.getRegister(CO0_CAUSE) & CAUSE_RIPL) > 0) { \
+        goto HANDLE_INTERRUPT; \
+    } \
+
+// Does some processing to ensure the ISA representation remains consistent to software (e.g. r0 = 0)
+#define updateISARep()  \
     cycleCounter++; \
 \
     registers[0] = 0; \
-\
-    if (signal != 0) { \
-        goto HANDLE_INTERRUPT; \
-    } \
-\
+
+// Fetches the next instruction into the program counter and instruction register
+#define fetch()  \
     if (branch) { \
         branch = false; \
         branchDelay = false; \
@@ -784,7 +771,7 @@ dispatchStart:
         exceptRestartLoop = false;
         
     #ifdef TEST_PROJECT
-        fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        updateISARep() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
     #else
         DISPATCH();
     #endif
@@ -2078,14 +2065,19 @@ dispatchStart:
  */
     
     // Miscellaneous
+    // Jumped to from dispatch() upon the detection of an interrupt request
     HANDLE_INTERRUPT:
         if (signal == MIPSInterrupt::HALT) {
             goto CPU_HALT;
         }
-        else {
+        // Interrupts Enabled?
+        else if ((cop0.getRegister(CO0_STATUS) & STATUS_INTS) == 0x4) {
             serviceInterrupt();
-            DISPATCH();
         }
+        // If we reached here then an interrupt was not taken so continue
+        // the fetch, decode and execution
+        fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+    // End HANDLE_INTERRUPT
     
     RESERVED_INSTRUCTION:
         throw ReservedInstructionException();
@@ -2141,61 +2133,32 @@ dispatchStart:
 }
 
 // CPU Thread interrupt servicing
+// Tests based on priority so the highest will interrupt first
 void CPU::serviceInterrupt() {
-    uint8_t tempsig = signal;
-    signal = 0;
-    // Check if masked
-    switch (tempsig) {
-        case MIPSInterrupt::HW0: {
-            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM2) > 0) {
-                throw MIPSInterrupt();
-            }
-            else {
-                return;
-            }
-        }
-        case MIPSInterrupt::HW1: {
-            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM3) > 0) {
-                throw MIPSInterrupt();
-            }
-            else {
-                return;
-            }
-        }
-        case MIPSInterrupt::HW2: {
-            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM4) > 0) {
-                throw MIPSInterrupt();
-            }
-            else {
-                return;
-            }
-        }
-        case MIPSInterrupt::HW3: {
-            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM5) > 0) {
-                throw MIPSInterrupt();
-            }
-            else {
-                return;
-            }
-        }
-        case MIPSInterrupt::HW4: {
-            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM6) > 0) {
-                throw MIPSInterrupt();
-            }
-            else {
-                return;
-            }
-        }
-        case MIPSInterrupt::HW5: {
-            if ((cop0.getRegister(CO0_STATUS) & STATUS_IM7) > 0) {
-                throw MIPSInterrupt();
-            }
-            else {
-                return;
-            }
-        }
-        default: {
-            throw std::runtime_error("serviceInterrupt() got an invalid signal");
-        }
+    uint32_t cause = cop0.getRegister(CO0_CAUSE);
+    uint32_t status = cop0.getRegister(CO0_STATUS);
+    // HW5
+    if (((cause & CAUSE_IP7) > 0) && ((status & STATUS_IM7) > 0)) {
+        throw MIPSInterrupt();
+    }
+    // HW4
+    else if (((cause & CAUSE_IP6) > 0) && ((status & STATUS_IM6) > 0)) {
+        throw MIPSInterrupt();
+    }
+    // HW3
+    else if (((cause & CAUSE_IP5) > 0) && ((status & STATUS_IM5) > 0)) {
+        throw MIPSInterrupt();
+    }
+    // HW2
+    else if (((cause & CAUSE_IP4) > 0) && ((status & STATUS_IM4) > 0)) {
+        throw MIPSInterrupt();
+    }
+    // HW1
+    else if (((cause & CAUSE_IP3) > 0) && ((status & STATUS_IM3) > 0)) {
+        throw MIPSInterrupt();
+    }
+    // HW0
+    else if (((cause & CAUSE_IP2) > 0) && ((status & STATUS_IM2) > 0)) {
+        throw MIPSInterrupt();
     }
 }

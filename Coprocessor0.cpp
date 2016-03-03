@@ -327,6 +327,14 @@ inline bool Coprocessor0::inUserMode() {
             && ((registerFile[12][0]->copregister & STATUS_ERL) == 0x0));
 }
 
+// Tests whether interrupts are enabled
+// Non-inline version to appease Clang
+bool Coprocessor0::interruptsEnabled() {
+    return (((registerFile[12][0]->copregister & STATUS_IE) > 0)
+            && ((registerFile[12][0]->copregister & STATUS_EXL) == 0)
+            && ((registerFile[12][0]->copregister & STATUS_ERL) == 0));
+}
+
 // Retrives a coprocessor0 register
 uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
     if (registerFile[regnum][sel] == nullptr) {

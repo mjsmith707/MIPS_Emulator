@@ -1,0 +1,2 @@
+Basic UART driver and some framework code to start C programs.
+Going to be the basis for interrupt and coprocessor testing probably.

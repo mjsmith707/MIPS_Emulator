@@ -107,6 +107,7 @@
 #define STATUS_ERL      0x00000004
 #define STATUS_EXL      0x00000002
 #define STATUS_IE       0x00000001
+#define STATUS_INTS     0x00000007
 
 // IntCtl Register Fields (CP0 Register 12, Select 1)
 #define INTCTL_IPTI     0xE0000000
@@ -198,6 +199,7 @@ class Coprocessor0 {
         inline bool inKernelMode();
         inline bool inSupervisorMode();
         inline bool inUserMode();
+        bool interruptsEnabled();
         uint32_t getRegister(uint8_t regnum, uint8_t sel);
         void setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value);
         void setRegisterHW(uint8_t regnum, uint8_t sel, uint32_t value);
