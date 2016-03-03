@@ -13,8 +13,8 @@
 _start:
     nop
     move $sp, $zero
-    lui $sp, 0x8008
-    jal init_uart
+    lui $sp, 0x4FF4 # init stack pointer
+    jal init_uart # init uart
     nop
-    jal main
+    jal main # call main
     nop
