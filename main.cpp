@@ -47,6 +47,7 @@ int main(int argc, const char * argv[]) {
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
+    //std::this_thread::sleep_for(std::chrono::seconds(60));
     
     // Wait for console input
     consoleUI->waitForInput();
