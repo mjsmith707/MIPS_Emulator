@@ -17,7 +17,6 @@ intmsg: .asciiz "Interrupt!\n"
 .set noat
 reset_exception:
 	j _start
-	jr $t0
 	nop
 	
 .align 10
