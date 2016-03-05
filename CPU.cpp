@@ -346,7 +346,6 @@ std::string CPU::debugPrint() {
     if (branchDelay) {
         ss << "-- Delay Slot --" << std::endl;
     }
-    ss << std::hex << "0x" << PC-4 << "\t";
     switch (opcode) {
         case 0x0: {
             ss << "SPECIAL RD RS RT" << std::endl
