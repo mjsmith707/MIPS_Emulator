@@ -57,6 +57,7 @@ class MIPSException {
         void setContextBadVPN2(CPU*);
         void setEntryHiVA(CPU*);
         void setErrorEPC(CPU*);
+        void setExlOn(CPU* cpu);
     
     public:
         virtual void execute(CPU*) = 0;

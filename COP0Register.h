@@ -12,6 +12,7 @@
 // This is basically a C&P job from the C# version until I can think of a better way to implement it
 
 #include <cstdint>  // uint32_t
+#include <atomic>
 #include <stdexcept>
 
 class COP0Register {
@@ -38,7 +39,7 @@ class COP0Register {
         // The actual register
         // Publically available for performance reasons
         // Software should use setValue/getValue
-        uint32_t copregister;
+        std::atomic<uint32_t> copregister;
     
         // Public accessor
         uint32_t getValue();

@@ -114,7 +114,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
     // Nonmaskable Interrupts/Thread signaling
     if (interrupt == MIPSInterrupt::HALT) {
         // Assert all interrupt lines
-        cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_RIPL);
+        cop0.orRegisterHW(CO0_CAUSE, CAUSE_RIPL);
         signal = static_cast<uint8_t>(interrupt);
         return true;
     }
@@ -130,7 +130,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         case MIPSInterrupt::HW0: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM2) > 0) {
                 // Update Cause
-                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP2);
+                cop0.orRegisterHW(CO0_CAUSE, CAUSE_IP2);
                 return true;
             }
             break;
@@ -138,7 +138,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         case MIPSInterrupt::HW1: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM3) > 0) {
                 // Update Cause
-                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP3);
+                cop0.orRegisterHW(CO0_CAUSE, CAUSE_IP3);
                 return true;
             }
             break;
@@ -146,7 +146,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         case MIPSInterrupt::HW2: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM4) > 0) {
                 // Update Cause
-                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP4);
+                cop0.orRegisterHW(CO0_CAUSE, CAUSE_IP4);
                 return true;
             }
             break;
@@ -154,7 +154,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         case MIPSInterrupt::HW3: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM5) > 0) {
                 // Update Cause
-                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP5);
+                cop0.orRegisterHW(CO0_CAUSE, CAUSE_IP5);
                 return true;
             }
             break;
@@ -162,7 +162,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         case MIPSInterrupt::HW4: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM6) > 0) {
                 // Update Cause
-                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP6);
+                cop0.orRegisterHW(CO0_CAUSE, CAUSE_IP6);
                 return true;
             }
             break;
@@ -170,7 +170,7 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         case MIPSInterrupt::HW5: {
             if ((cop0.getRegister(CO0_STATUS) & STATUS_IM7) > 0) {
                 // Update Cause
-                cop0.setRegisterHW(CO0_CAUSE, cop0.getRegister(CO0_CAUSE) | CAUSE_IP7);
+                cop0.orRegisterHW(CO0_CAUSE, CAUSE_IP7);
                 return true;
             }
             break;
@@ -180,6 +180,43 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
         }
     }
     return false;
+}
+
+void CPU::clearInterrupt(MIPSInterrupt interrupt) {
+    // Assert interrupt line
+    switch (interrupt) {
+        case MIPSInterrupt::HW0: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP2);
+            break;
+        }
+        case MIPSInterrupt::HW1: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP3);
+            break;
+        }
+        case MIPSInterrupt::HW2: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP4);
+            break;
+        }
+        case MIPSInterrupt::HW3: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP5);
+            break;
+        }
+        case MIPSInterrupt::HW4: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP6);
+            break;
+        }
+        case MIPSInterrupt::HW5: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP7);
+            break;
+        }
+        case MIPSInterrupt::HALT: {
+            signal = 0;
+            break;
+        }
+        default: {
+            throw std::runtime_error("Invalid hardware interrupt number specified");
+        }
+    }
 }
 
 // Returns the control coprocessor associated with this CPU
@@ -305,9 +342,11 @@ std::string CPU::debugPrint() {
     << "sel = " << std::dec << (int)sel << std::endl
     << "=== END Decode ===" << std::endl;
     ss << std::dec << "=== Disassembly ===" << std::endl;
+
     if (branchDelay) {
         ss << "-- Delay Slot --" << std::endl;
     }
+    ss << std::hex << "0x" << PC-4 << "\t";
     switch (opcode) {
         case 0x0: {
             ss << "SPECIAL RD RS RT" << std::endl
@@ -766,6 +805,9 @@ void CPU::dispatchLoop() {
     };
     
     // Begin Dispatch Loop
+    // Start Count/Compare timer
+    cop0.startCounter(this);
+    
 dispatchStart:
     try {
         exceptRestartLoop = false;
@@ -1169,7 +1211,8 @@ dispatchStart:
     
     // 0x30 Load Linked Word
     LL:
-        goto UNIMPLEMENTED_INSTRUCTION;
+        goto LW;
+        //goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
     // 0x31 Load Word to Floating Point
@@ -1203,7 +1246,8 @@ dispatchStart:
     
     // 0x38 Store Conditional Word
     SC:
-        goto UNIMPLEMENTED_INSTRUCTION;
+        goto SW;
+        //goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
     // 0x39 Store Word from Floating Point
@@ -2026,13 +2070,13 @@ dispatchStart:
             // DI: Disable Interrupts
             DECODE_RT();
             registers[rt] = cop0.getRegister(CO0_STATUS);
-            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) & ~(STATUS_IE));
+            cop0.andRegisterHW(CO0_STATUS, ~STATUS_IE);
         }
         else {
             // EI: Enable Interrupts
             DECODE_RT();
             registers[rt] = cop0.getRegister(CO0_STATUS);
-            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) | STATUS_IE);
+            cop0.orRegisterHW(CO0_STATUS, STATUS_IE);
         }
         DISPATCH();
         
@@ -2043,17 +2087,22 @@ dispatchStart:
         if ((cop0.getRegister(CO0_STATUS) & STATUS_ERL) > 0) {
             tempu32 = cop0.getRegister(CO0_ERROREPC);
             // Status_erl = 0
-            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) & ~(STATUS_ERL));
+            cop0.andRegisterHW(CO0_STATUS, ~(STATUS_ERL));
         }
         else {
             tempu32 = cop0.getRegister(CO0_EPC);
             // Status_exl = 0
-            cop0.setRegisterHW(CO0_STATUS, cop0.getRegister(CO0_STATUS) & ~(STATUS_EXL));
+            cop0.andRegisterHW(CO0_STATUS, ~(STATUS_EXL));
             // FIXME: Shadow Registers not implemented (optional)
         }
         // MIPS16e not implemented (optional)
         PC = tempu32;
         // FIXME: LLbit = 0
+        
+        // Manual is extremely unclear about how and when CAUSE_IP bits are cleared
+        // If they aren't we're just going to interrupt loop forever
+        clearInterrupt(lastReceivedInt);
+        
         DISPATCH();
     
     // 0x1F Debug Exception Return
@@ -2071,7 +2120,7 @@ dispatchStart:
             goto CPU_HALT;
         }
         // Interrupts Enabled?
-        else if ((cop0.getRegister(CO0_STATUS) & STATUS_INTS) == 0x4) {
+        else if ((cop0.getRegister(CO0_STATUS) & STATUS_INTS) == 0x1) {
             serviceInterrupt();
         }
         // If we reached here then an interrupt was not taken so continue
@@ -2080,6 +2129,10 @@ dispatchStart:
     // End HANDLE_INTERRUPT
     
     RESERVED_INSTRUCTION:
+        if (consoleUI != nullptr) {
+            consoleUI->sendConsoleMsg("Reserved Instruction!");
+            consoleUI->sendConsoleMsg(debugPrint());
+        }
         throw ReservedInstructionException();
     
     UNIMPLEMENTED_INSTRUCTION:
@@ -2100,14 +2153,11 @@ dispatchStart:
     // Multi-catch for in processor interrupts
     // exceptions and simulation errors
     catch (std::runtime_error& e) {
-    #ifdef TEST_PROJECT
         exceptRestartLoop = false;
-    #else
-        exceptRestartLoop = true;
-    #endif
         
         if (consoleUI != nullptr) {
             consoleUI->sendConsoleMsg(e.what());
+            consoleUI->sendConsoleMsg(debugPrint());
         }
     }
     // MIPS Exceptions
@@ -2115,6 +2165,10 @@ dispatchStart:
         // Execute exception handler
         e.execute(this);
         
+        // Turn off branch controls
+        branchDelay = false;
+        branch = false;
+
     #ifdef TEST_PROJECT
         exceptRestartLoop = false;
     #else
@@ -2139,26 +2193,32 @@ void CPU::serviceInterrupt() {
     uint32_t status = cop0.getRegister(CO0_STATUS);
     // HW5
     if (((cause & CAUSE_IP7) > 0) && ((status & STATUS_IM7) > 0)) {
-        throw MIPSInterrupt();
+        lastReceivedInt = MIPSInterrupt::HW5;
+        throw InterruptException();
     }
     // HW4
     else if (((cause & CAUSE_IP6) > 0) && ((status & STATUS_IM6) > 0)) {
-        throw MIPSInterrupt();
+        lastReceivedInt = MIPSInterrupt::HW4;
+        throw InterruptException();
     }
     // HW3
     else if (((cause & CAUSE_IP5) > 0) && ((status & STATUS_IM5) > 0)) {
-        throw MIPSInterrupt();
+        lastReceivedInt = MIPSInterrupt::HW3;
+        throw InterruptException();
     }
     // HW2
     else if (((cause & CAUSE_IP4) > 0) && ((status & STATUS_IM4) > 0)) {
-        throw MIPSInterrupt();
+        lastReceivedInt = MIPSInterrupt::HW2;
+        throw InterruptException();
     }
     // HW1
     else if (((cause & CAUSE_IP3) > 0) && ((status & STATUS_IM3) > 0)) {
-        throw MIPSInterrupt();
+        lastReceivedInt = MIPSInterrupt::HW1;
+        throw InterruptException();
     }
     // HW0
     else if (((cause & CAUSE_IP2) > 0) && ((status & STATUS_IM2) > 0)) {
-        throw MIPSInterrupt();
+        lastReceivedInt = MIPSInterrupt::HW0;
+        throw InterruptException();
     }
 }

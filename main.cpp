@@ -43,11 +43,12 @@ int main(int argc, const char * argv[]) {
     CPU* cpu0 = new CPU(consoleUI, memory);
     
     // Load binary
+    //std::this_thread::sleep_for(std::chrono::seconds(10));
     loadFile(consoleUI, argv[1], memory, cpu0);
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
-    //std::this_thread::sleep_for(std::chrono::seconds(1));
+    
     //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW0);
     //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW1);
     //cpu0->sendInterrupt(CPU::MIPSInterrupt::HW2);
@@ -135,4 +136,5 @@ void loadFile(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu
             }
         }
     }
+    consoleUI->sendConsoleMsg(ss.str());
 }

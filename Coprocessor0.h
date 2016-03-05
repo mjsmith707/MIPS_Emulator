@@ -10,6 +10,9 @@
 #define Coprocessor0_h
 
 #include "COP0Register.h"
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 // Register Name Macros (number,sel)
 #define CO0_INDEX       0,0
@@ -191,19 +194,61 @@
 #define CONFIG3_SM      0x00000002
 #define CONFIG3_TL      0x00000001
 
+// Forward reference to CPU
+class CPU;
+
 class Coprocessor0 {
     private:
+        // Coprocessor Register File
         COP0Register* registerFile[32][32];
+    
+        // Atomic bool for controlling count/compare loop
+        std::atomic<bool> countCompActive;
+    
+        // Count Compare Thread
+        std::thread* countCompThread;
+    
+        // Coprocessor Giant Lock
+        std::mutex giantlock;
+    
+        // Private thread count/compare loop
+        void countCompare(CPU* cpu);
+    
     public:
         Coprocessor0();
+        ~Coprocessor0();
+    
+        // Tests for various operating modes
         inline bool inKernelMode();
         inline bool inSupervisorMode();
         inline bool inUserMode();
         bool interruptsEnabled();
+    
+
+        // Returns the value in a register atomically
         uint32_t getRegister(uint8_t regnum, uint8_t sel);
+    
+        // Gets the value in nonatomic fashion
+        uint32_t getRegisterLazy(uint8_t regnum, uint8_t sel);
+    
+        // Sets a register in software mode (i.e. mips programs) atomically
         void setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value);
+    
+        // Sets a register in hardware mode (i.e. mmu) atomically
         void setRegisterHW(uint8_t regnum, uint8_t sel, uint32_t value);
+    
+        // Does an atomic and on the register with mask
+        void andRegisterHW(uint8_t regnum, uint8_t sel, uint32_t mask);
+        
+        // Does an atomic or on the register with mask
+        void orRegisterHW(uint8_t regnum, uint8_t sel, uint32_t mask);
+    
+        // Resets a register to its original startup state atomically
         void resetRegister(uint8_t regnum, uint8_t sel);
+    
+        // Called by CPU to start and stop the count/compare registers
+        void startCounter(CPU* cpu);
+        void stopCounter();
 };
 
 #endif /* Coprocessor0_h */

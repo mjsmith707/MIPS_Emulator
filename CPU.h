@@ -23,6 +23,18 @@ class MIPSException;        // Exception class forward reference
 
 // MIPS CPU
 class CPU {
+    public:
+    // Interrupt Definitions
+    enum MIPSInterrupt {
+        HW0 = 2,
+        HW1 = 3,
+        HW2 = 4,
+        HW3 = 5,
+        HW4 = 6,
+        HW5 = 7,
+        HALT = 8,
+    };
+    
     private:
         // Decoder constants
         #define OPCODEMASK  0xFC000000
@@ -125,6 +137,11 @@ class CPU {
         // Controls behavior of try-catch exception mechanism
         bool exceptRestartLoop;
     
+        // Interrupt related stuff
+        // Set by an interruptexception()
+        // Cleared by eret (which will update CAUSE properly)
+        MIPSInterrupt lastReceivedInt;
+    
         // String tables for readable instruction decoding
         static const char* opcodeNames[64];
         static const char* functNames[64];
@@ -179,17 +196,6 @@ class CPU {
         std::string debugPrint();
     
     public:
-        // Interrupt Definitions
-        enum MIPSInterrupt {
-            HW0 = 2,
-            HW1 = 3,
-            HW2 = 4,
-            HW3 = 5,
-            HW4 = 6,
-            HW5 = 7,
-            HALT = 8,
-        };
-    
         CPU(ConsoleUI* conui, PMMU* memory);
         CPU(PMMU* memory);
     
@@ -201,6 +207,7 @@ class CPU {
     
         // Sends a signal to the CPU
         bool sendInterrupt(MIPSInterrupt);
+        void clearInterrupt(MIPSInterrupt);
     
         Coprocessor0* getControlCoprocessor();
     

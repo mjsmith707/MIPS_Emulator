@@ -12,8 +12,8 @@
 void MIPSException::generalException(CPU* cpu, ExceptionType etype, ExceptionCode ecode) {
     uint32_t vectorOffset = 0;
     uint32_t vectorBase = 0;
-    // If status_exl == 0
-    if ((cpu->cop0.getRegister(CO0_STATUS) & STATUS_EXL) == 0) {
+    // If status_exl == 1
+    if ((cpu->cop0.getRegister(CO0_STATUS) & STATUS_EXL) > 0) {
         vectorOffset = 0x180;
     }
     else {
@@ -41,12 +41,12 @@ void MIPSException::generalException(CPU* cpu, ExceptionType etype, ExceptionCod
             }
             else {
                 // If Status_bev = 1 or IntCtl_vs = 0)
-                if (((cpu->cop0.getRegister(CO0_STATUS) & STATUS_BEV) == 0) || ((cpu->cop0.getRegister(CO0_INTCTL) & INTCTL_VS) == 0)) {
+                if (((cpu->cop0.getRegister(CO0_STATUS) & STATUS_BEV) > 0) || ((cpu->cop0.getRegister(CO0_INTCTL) & INTCTL_VS) == 0)) {
                     vectorOffset = 0x200;
                 }
                 else {
                     // If Config3_veic = 1
-                    if ((cpu->cop0.getRegister(CO0_CONFIG3) & CONFIG3_VEIC) == 0) {
+                    if ((cpu->cop0.getRegister(CO0_CONFIG3) & CONFIG3_VEIC) > 0) {
                         // TODO: Vectored Interrupt Support
                     }
                     else {
@@ -132,6 +132,11 @@ void MIPSException::setErrorEPC(CPU* cpu) {
         // Set to instruction address
         cpu->cop0.setRegisterHW(CO0_ERROREPC, cpu->PC-4);
     }
+}
+
+// Sets Status_exl to 1 for general exceptions
+void MIPSException::setExlOn(CPU* cpu) {
+    cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) | STATUS_EXL);
 }
 
 // Cold Reset Exception
@@ -262,7 +267,7 @@ MachineCheckException::MachineCheckException() {
 
 void MachineCheckException::execute(CPU* cpu) {
     // FIXME: Some vague descriptions of other possible saved state (pg 94 vol3)
-    
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::MCheck);
 }
 
@@ -272,7 +277,7 @@ WatchIFException::WatchIFException() {
 
 void WatchIFException::execute(CPU* cpu) {
     // FIXME: Cause_wp set for something idk
-    
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::WATCH);
 }
 
@@ -282,6 +287,7 @@ AddressErrorIFException::AddressErrorIFException() {
 
 void AddressErrorIFException::execute(CPU* cpu) {
     setBadVaddr(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::AdEL);
 }
 
@@ -304,6 +310,7 @@ void TLBInvalidIFException::execute(CPU* cpu) {
     setBadVaddr(cpu);
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::TLBL);
 }
 
@@ -316,6 +323,7 @@ void TLBExecuteInhibitException::execute(CPU* cpu) {
     ExceptionCode code = (cpu->cop0.getRegister(CO0_PAGEGRAIN) & PAGEGRAIN_IEC) > 0 ? ExceptionCode::TLBXI : ExceptionCode::TLBL;
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, code);
 }
 
@@ -349,6 +357,7 @@ BusErrorIFException::BusErrorIFException() {
 }
 
 void BusErrorIFException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::IBE);
 }
 
@@ -360,6 +369,7 @@ void CoprocessorUnusableException::execute(CPU* cpu) {
     // FIXME: Cause_ce is described in generalException
     // And also described as 'additional' here
     // So which one does it...
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::CpU);
 }
 
@@ -368,6 +378,7 @@ ReservedInstructionException::ReservedInstructionException() {
 }
 
 void ReservedInstructionException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::RI);
 }
 
@@ -376,6 +387,7 @@ IntegerOverflowException::IntegerOverflowException() {
 }
 
 void IntegerOverflowException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::Ov);
 }
 
@@ -384,6 +396,7 @@ TrapException::TrapException() {
 }
 
 void TrapException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::Tr);
 }
 
@@ -392,6 +405,7 @@ SystemCallException::SystemCallException() {
 }
 
 void SystemCallException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::Sys);
 }
 
@@ -400,6 +414,7 @@ BreakpointException::BreakpointException() {
 }
 
 void BreakpointException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::Bp);
 }
 
@@ -409,6 +424,7 @@ FloatingPointException::FloatingPointException() {
 
 void FloatingPointException::execute(CPU* cpu) {
     // TODO: Save cause to FCSR
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::FPE);
 }
 
@@ -417,6 +433,7 @@ Coprocessor2Exception::Coprocessor2Exception() {
 }
 
 void Coprocessor2Exception::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::C2E);
 }
 
@@ -426,7 +443,7 @@ WatchDataException::WatchDataException() {
 
 void WatchDataException::execute(CPU* cpu) {
     // FIXME: Cause_wp set for something idk
-    
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::WATCH);
 }
 
@@ -436,6 +453,7 @@ AddressErrorDataException::AddressErrorDataException() {
 
 void AddressErrorDataException::execute(CPU* cpu) {
     setBadVaddr(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::AdES);
 }
 
@@ -458,6 +476,7 @@ void TLBInvalidDataException::execute(CPU* cpu) {
     setBadVaddr(cpu);
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::TLBS);
 }
 
@@ -471,6 +490,7 @@ void TLBReadInhibitException::execute(CPU* cpu) {
     setBadVaddr(cpu);
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, code);
 }
 
@@ -482,6 +502,7 @@ void TLBModifiedException::execute(CPU* cpu) {
     setBadVaddr(cpu);
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::Mod);
 }
 
@@ -514,6 +535,7 @@ BusErrorDataException::BusErrorDataException() {
 }
 
 void BusErrorDataException::execute(CPU* cpu) {
+    setExlOn(cpu);
     generalException(cpu, ExceptionType::None, ExceptionCode::DBE);
 }
 
@@ -522,5 +544,7 @@ InterruptException::InterruptException() {
 }
 
 void InterruptException::execute(CPU* cpu) {
+    // FIXME: Not sure if this is correct but it seems like it
+    cpu->cop0.setRegisterHW(CO0_STATUS, cpu->cop0.getRegister(CO0_STATUS) & ~(STATUS_EXL));
     generalException(cpu, ExceptionType::Interrupt, ExceptionCode::Int);
 }
