@@ -65,12 +65,11 @@ uint32_t COP0Register::getValue() {
 // Software can Write to READWRITE bits but not LOCKED or READ
 // Writing to LOCKED field is UNDEFINED by architecture
 // but we'll just ignore it too.
-void COP0Register::setValue(uint32_t value, bool hwmode) {
+void COP0Register::updateValue(uint32_t value, bool hwmode) {
     uint32_t bit1 = 0;
     uint32_t bit2 = 0;
     uint32_t newvalue = 0;
     const uint32_t mask = 0x01;
-    
     // Read each bit and compare to their bitfield mask value
     // If permissible. Modify the newvalue.
     // bit1 is the current bit in the register
@@ -105,7 +104,32 @@ void COP0Register::setValue(uint32_t value, bool hwmode) {
     this->copregister = newvalue;
 }
 
+// Sets the register to a value
+void COP0Register::setValue(uint32_t value, bool hwmode) {
+    std::lock_guard<std::mutex> lockg(mute);
+    updateValue(value, hwmode);
+}
+
+// Does an atomic and with the register and value
+void COP0Register::andValue(uint32_t value, bool hwmode) {
+    std::lock_guard<std::mutex> lockg(mute);
+    updateValue(getValue() & value, hwmode);
+}
+
+// Does an atomic or with the register and value
+void COP0Register::orValue(uint32_t value, bool hwmode) {
+    std::lock_guard<std::mutex> lockg(mute);
+    updateValue(getValue() | value, hwmode);
+}
+
+// Does an atomic add
+void COP0Register::addValue(uint32_t value, bool hwmode) {
+    std::lock_guard<std::mutex> lockg(mute);
+    updateValue(getValue() + value, hwmode);
+}
+
 // Resets register to its original value
 void COP0Register::resetRegister() {
+    std::lock_guard<std::mutex> lockg(mute);
     this->copregister = this->resetValue;
 }

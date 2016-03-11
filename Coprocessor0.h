@@ -208,9 +208,6 @@ class Coprocessor0 {
         // Count Compare Thread
         std::thread* countCompThread;
     
-        // Coprocessor Giant Lock
-        std::mutex giantlock;
-    
         // Private thread count/compare loop
         void countCompare(CPU* cpu);
     
@@ -223,13 +220,9 @@ class Coprocessor0 {
         inline bool inSupervisorMode();
         inline bool inUserMode();
         bool interruptsEnabled();
-    
 
         // Returns the value in a register atomically
         uint32_t getRegister(uint8_t regnum, uint8_t sel);
-    
-        // Gets the value in nonatomic fashion
-        uint32_t getRegisterLazy(uint8_t regnum, uint8_t sel);
     
         // Sets a register in software mode (i.e. mips programs) atomically
         void setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value);

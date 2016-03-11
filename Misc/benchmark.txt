@@ -1,3 +1,4 @@
 without try-catch 3734534719 inst/min 62242245 inst/sec
 with try-catch    3744070830 inst/min 62401181 inst/sec
 with locking cop0 1147206238 inst/min 19120104 inst/sec
+with fine-locking 3612754564 inst/min 60212576 inst/sec

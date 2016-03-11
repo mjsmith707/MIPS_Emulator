@@ -12,7 +12,7 @@
 // This is basically a C&P job from the C# version until I can think of a better way to implement it
 
 #include <cstdint>  // uint32_t
-#include <atomic>
+#include <thread>
 #include <stdexcept>
 
 class COP0Register {
@@ -32,20 +32,35 @@ class COP0Register {
         // Initial reset value for the register
         const uint32_t resetValue;
     
-    public:
-        COP0Register();
-        COP0Register(uint32_t value, uint32_t mask1, uint32_t mask2);
-    
         // The actual register
         // Publically available for performance reasons
         // Software should use setValue/getValue
-        std::atomic<uint32_t> copregister;
+        volatile uint32_t copregister;
+    
+        // Mutex
+        std::mutex mute;
+    
+        // Updates the register based on rwx locking bits
+        void updateValue(uint32_t value, bool hwmode);
+    
+    public:
+        COP0Register();
+        COP0Register(uint32_t value, uint32_t mask1, uint32_t mask2);
     
         // Public accessor
         uint32_t getValue();
     
         // Public setter
         void setValue(uint32_t value, bool hwmode);
+    
+        // Does an atomic and with the register and value
+        void andValue(uint32_t value, bool hwmode);
+    
+        // Does an atomic or with the register and value
+        void orValue(uint32_t value, bool hwmode);
+    
+        // Does an atomic add
+        void addValue(uint32_t value, bool hwmode);
     
         // Public resetter
         void resetRegister();

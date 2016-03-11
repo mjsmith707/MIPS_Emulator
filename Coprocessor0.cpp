@@ -316,9 +316,9 @@ Coprocessor0::~Coprocessor0() {
 // Helper functions
 // Tests whether the processor is in kernel mode
 inline bool Coprocessor0::inKernelMode() {
-    return (((registerFile[12][0]->copregister & STATUS_KSU) == 0x0)
-            || ((registerFile[12][0]->copregister & STATUS_EXL) > 0x0)
-            || ((registerFile[12][0]->copregister & STATUS_ERL) > 0x0));
+    return (((registerFile[12][0]->getValue() & STATUS_KSU) == 0x0)
+            || ((registerFile[12][0]->getValue() & STATUS_EXL) > 0x0)
+            || ((registerFile[12][0]->getValue() & STATUS_ERL) > 0x0));
 }
 
 inline bool Coprocessor0::inSupervisorMode() {
@@ -328,15 +328,15 @@ inline bool Coprocessor0::inSupervisorMode() {
 
 // Tests whether the processor is in usermode
 inline bool Coprocessor0::inUserMode() {
-    return (((registerFile[12][0]->copregister & STATUS_KSU) == 0x10)
-            && ((registerFile[12][0]->copregister & STATUS_EXL) == 0x0)
-            && ((registerFile[12][0]->copregister & STATUS_ERL) == 0x0));
+    return (((registerFile[12][0]->getValue() & STATUS_KSU) == 0x10)
+            && ((registerFile[12][0]->getValue() & STATUS_EXL) == 0x0)
+            && ((registerFile[12][0]->getValue() & STATUS_ERL) == 0x0));
 }
 
 // Tests whether interrupts are enabled
 // Non-inline version to appease Clang
 bool Coprocessor0::interruptsEnabled() {
-    return ((registerFile[12][0]->copregister & STATUS_INTS) == 0x1);
+    return ((registerFile[12][0]->getValue() & STATUS_INTS) == 0x1);
 }
 
 // Retrives a coprocessor0 register
@@ -344,7 +344,6 @@ uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
-    std::lock_guard<std::mutex> lock(giantlock);
     return registerFile[regnum][sel]->getValue();
 }
 
@@ -353,13 +352,12 @@ void Coprocessor0::setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
-    std::lock_guard<std::mutex> lock(giantlock);
     // Special behavior for Count/Compare Registers
     if ((regnum == 11) && (sel == 0)) {
         // Clear Cause_ti/IP7 (HW5)
         if ((registerFile[13][0]->getValue() & CAUSE_TI) > 0) {
-            registerFile[13][0]->setValue(registerFile[13][0]->getValue() & ~(CAUSE_TI), true);
-            registerFile[13][0]->setValue(registerFile[13][0]->getValue() & ~(CAUSE_IP7), true);
+            registerFile[13][0]->andValue(~CAUSE_TI, true);
+            registerFile[13][0]->andValue(~CAUSE_IP7, true);
         }
     }
     registerFile[regnum][sel]->setValue(value, false);
@@ -370,7 +368,6 @@ void Coprocessor0::setRegisterHW(uint8_t regnum, uint8_t sel, uint32_t value) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
-    std::lock_guard<std::mutex> lock(giantlock);
     registerFile[regnum][sel]->setValue(value, true);
 }
 
@@ -379,8 +376,7 @@ void Coprocessor0::andRegisterHW(uint8_t regnum, uint8_t sel, uint32_t mask) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
-    std::lock_guard<std::mutex> lock(giantlock);
-    registerFile[regnum][sel]->setValue(registerFile[regnum][sel]->getValue() & mask, true);
+    registerFile[regnum][sel]->andValue(mask, true);
 }
 
 // Does an atomic or on the register with mask
@@ -388,8 +384,7 @@ void Coprocessor0::orRegisterHW(uint8_t regnum, uint8_t sel, uint32_t mask) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
-    std::lock_guard<std::mutex> lock(giantlock);
-    registerFile[regnum][sel]->setValue(registerFile[regnum][sel]->getValue() | mask, true);
+    registerFile[regnum][sel]->orValue(mask, true);
 }
 
 // Resets a register to it's original reset value
@@ -397,42 +392,27 @@ void Coprocessor0::resetRegister(uint8_t regnum, uint8_t sel) {
     if (registerFile[regnum][sel] == nullptr) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
-    std::lock_guard<std::mutex> lock(giantlock);
     registerFile[regnum][sel]->resetRegister();
 }
 
 // Increments count and tests against compare
 // Triggers interrupt on count==compare
 void Coprocessor0::countCompare(CPU* cpu) {
-    bool locked;
-    std::unique_lock<std::mutex> lockg(giantlock, std::defer_lock);
     for (;;) {
         if (!countCompActive) {
             return;
         }
         
         // Increment Count Register
-        // Start critical section
-        lockg.lock();
-        locked = true;
-        registerFile[9][0]->copregister++;
+        registerFile[9][0]->addValue(1, true);
         
         // Compare Count and Compare Registers
         // Only if compare != 0
-        if ((registerFile[11][0]->copregister != 0) && (registerFile[9][0]->copregister == registerFile[11][0]->copregister)) {
+        if ((registerFile[11][0]->getValue() != 0) && (registerFile[9][0]->getValue() == registerFile[11][0]->getValue())) {
             // Set Cause_ti
-            registerFile[13][0]->copregister = registerFile[13][0]->getValue() | CAUSE_TI;
+            registerFile[13][0]->orValue(CAUSE_TI, true);
             // Trigger HW5 interrupt
-            // Unlock, sendInterrupt will require the lock
-            lockg.unlock();
-            locked = false;
             cpu->sendInterrupt(CPU::MIPSInterrupt::HW5);
-        }
-        
-        // End critical section
-        if (locked) {
-            lockg.unlock();
-            locked = false;
         }
         
         // FIXME: Needs to be set to some fraction of the cpu clock
@@ -440,6 +420,7 @@ void Coprocessor0::countCompare(CPU* cpu) {
     }
 }
 
+// Starts Count/Compare counter
 void Coprocessor0::startCounter(CPU* cpu) {
     if (cpu == nullptr) {
         throw std::runtime_error("Got nullptr in cop0::startCounter");
@@ -453,6 +434,7 @@ void Coprocessor0::startCounter(CPU* cpu) {
     countCompThread = new std::thread(std::bind(&Coprocessor0::countCompare, this, cpu));
 }
 
+// Stops Count/Compare counter and thread
 void Coprocessor0::stopCounter() {
     countCompActive = false;
     if (countCompThread != nullptr) {

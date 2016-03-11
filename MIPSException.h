@@ -18,6 +18,7 @@ class MIPSException {
         enum class ExceptionType {
             TLBRefill,
             Interrupt,
+            General,
             None
         };
         
