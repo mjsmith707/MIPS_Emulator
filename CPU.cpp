@@ -318,6 +318,40 @@ void CPU::setJimm(uint32_t val) {
 void CPU::setSel(uint8_t val) {
     this->sel = val;
 }
+void CPU::executeException() {
+    DECODE_JIMM();
+    switch (jimm) {
+        case 0x00: throw ColdResetException();
+        case 0x01: throw SoftResetException();
+        case 0x02: throw NonmaskableInterruptException();
+        case 0x03: throw MachineCheckException();
+        case 0x04: throw WatchIFException();
+        case 0x05: throw AddressErrorIFException();
+        case 0x06: throw TLBRefillIFException();
+        case 0x07: throw TLBInvalidIFException();
+        case 0x08: throw TLBExecuteInhibitException();
+        case 0x09: throw CacheErrorIFException();
+        case 0x0A: throw BusErrorIFException();
+        case 0x0B: throw CoprocessorUnusableException(CoprocessorUnusableException::CO2);
+        case 0x0C: throw ReservedInstructionException();
+        case 0x0D: throw IntegerOverflowException();
+        case 0x0E: throw TrapException();
+        case 0x0F: throw SystemCallException();
+        case 0x10: throw BreakpointException();
+        case 0x11: throw FloatingPointException();
+        case 0x12: throw Coprocessor2Exception();
+        case 0x13: throw WatchDataException();
+        case 0x14: throw AddressErrorDataException();
+        case 0x15: throw TLBRefillDataException();
+        case 0x16: throw TLBInvalidDataException();
+        case 0x17: throw TLBReadInhibitException();
+        case 0x18: throw TLBModifiedException();
+        case 0x19: throw CacheErrorDataException();
+        case 0x1A: throw BusErrorDataException();
+        case 0x1B: throw InterruptException();
+        default: throw std::runtime_error("Invalid opcode for exception testing");
+    }
+}
 #endif
 
 // Prints information about the cpu's execution per cycle
@@ -493,7 +527,11 @@ void CPU::dispatchLoop() {
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3C
         &&SDC1,     // 0x3D
         &&SDC2,     // 0x3E
+#ifdef TEST_PROJECT
+        &&TRIGGER_EXCEPTION,            // 0x3F
+#else
         &&UNIMPLEMENTED_INSTRUCTION,    // 0x3F
+#endif
     };
     
     static void* functTable[64] = {
@@ -986,11 +1024,11 @@ dispatchStart:
     
     // 0x11 COP1
     COP1:
-        throw CoprocessorUnusableException();
+        throw CoprocessorUnusableException(CoprocessorUnusableException::CO1);
     
     // 0x12 COP2
     COP2:
-        throw CoprocessorUnusableException();
+        throw CoprocessorUnusableException(CoprocessorUnusableException::CO2);
         
     // 0x13
     
@@ -2146,6 +2184,11 @@ dispatchStart:
             std::cout << debugPrint() << std::endl;
         }
         return;
+        
+    #ifdef TEST_PROJECT
+    TRIGGER_EXCEPTION:
+        executeException();
+    #endif
         
     }
     // Multi-catch for in processor interrupts

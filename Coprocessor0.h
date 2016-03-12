@@ -221,8 +221,13 @@ class Coprocessor0 {
         inline bool inUserMode();
         bool interruptsEnabled();
 
-        // Returns the value in a register atomically
+        // Returns the value in a register
         uint32_t getRegister(uint8_t regnum, uint8_t sel);
+    
+    #ifdef TEST_PROJECT
+        // Gets the reset value for a register, for unit testing
+        uint32_t getRegisterReset(uint8_t regnum, uint8_t sel);
+    #endif
     
         // Sets a register in software mode (i.e. mips programs) atomically
         void setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value);

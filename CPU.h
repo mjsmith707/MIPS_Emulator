@@ -157,6 +157,12 @@ class CPU {
         void dispatchLoop();
         void serviceInterrupt();
     
+        // This triggers exceptions for unit testing using
+        // a custom instruction.
+    #ifdef TEST_PROJECT
+        void executeException();
+    #endif
+    
         // Friendship sadly is not inherited
         // and exceptions necessarily need to modify private members.
         // The alternatives are one super-class with switch-based

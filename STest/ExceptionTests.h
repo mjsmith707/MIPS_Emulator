@@ -41,5 +41,6 @@ void TLB_Modified_Exception();
 void Cache_Error_Data_Exception();
 void Bus_Error_Data_Exception();
 void Interrupt_Exception();
+void General_Exception_Processing();
 
 #endif /* ExceptionTests_h */

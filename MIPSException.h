@@ -144,7 +144,13 @@ public:
 // Coprocessor Unusable Exception
 class CoprocessorUnusableException : public MIPSException {
 public:
-    CoprocessorUnusableException();
+    enum FaultingCoprocessor {
+        CO0 = 0,
+        CO1 = 1,
+        CO2 = 2
+    };
+    FaultingCoprocessor unitnumber;
+    CoprocessorUnusableException(FaultingCoprocessor);
     void execute(CPU*);
 };
 

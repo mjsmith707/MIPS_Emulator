@@ -133,6 +133,12 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     // mask2: 00000000000000001111001111000000
     registerFile[12][2] = new COP0Register(0x0, 0x3C3CF3CF, 0xF3C0);
     
+    // SRSMap Register
+    // reset: 00000000000000000000000000000000
+    // mask1: 00000000000000000000000000000000
+    // mask2: 00000000000000000000000000000000
+    registerFile[12][3] = new COP0Register(0x0, 0x0, 0x0);
+    
     // Cause Register
     // reset: 00000000000000000000000000000000
     // mask1: 10110000110000001111111101111100
@@ -338,6 +344,16 @@ inline bool Coprocessor0::inUserMode() {
 bool Coprocessor0::interruptsEnabled() {
     return ((registerFile[12][0]->getValue() & STATUS_INTS) == 0x1);
 }
+
+#ifdef TEST_PROJECT
+// Gets the reset value for a register, for unit testing
+uint32_t Coprocessor0::getRegisterReset(uint8_t regnum, uint8_t sel) {
+    if (registerFile[regnum][sel] == nullptr) {
+        throw std::runtime_error("Invalid coprocessor register addressed!");
+    }
+    return registerFile[regnum][sel]->getResetValue();
+}
+#endif
 
 // Retrives a coprocessor0 register
 uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {

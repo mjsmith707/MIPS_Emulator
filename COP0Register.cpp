@@ -60,6 +60,13 @@ uint32_t COP0Register::getValue() {
     return this->copregister;
 }
 
+#ifdef TEST_PROJECT
+// For unit testing
+uint32_t COP0Register::getResetValue() {
+    return this->resetValue;
+}
+#endif
+
 // Need to honor the RW Mask array.
 // Hardware can Write to READ bits but not LOCKED
 // Software can Write to READWRITE bits but not LOCKED or READ

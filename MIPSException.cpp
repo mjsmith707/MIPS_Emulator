@@ -188,6 +188,7 @@ void ColdResetException::execute(CPU* cpu) {
     cpu->cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_DC);
     // EBase_exceptionbase = 0
     cpu->cop0.andRegisterHW(CO0_EBASE, ~EBASE_EBASE);
+    cpu->cop0.resetRegister(CO0_CONFIG0);
     // Config_k0 = 2 Suggested
     cpu->cop0.andRegisterHW(CO0_CONFIG0, ~CONFIG0_K0);
     cpu->cop0.orRegisterHW(CO0_CONFIG0, 0x2);
@@ -362,14 +363,17 @@ void BusErrorIFException::execute(CPU* cpu) {
 }
 
 // Coprocessor Unusable Exception
-CoprocessorUnusableException::CoprocessorUnusableException() {
+CoprocessorUnusableException::CoprocessorUnusableException(FaultingCoprocessor number) : unitnumber(number) {
 }
 
 void CoprocessorUnusableException::execute(CPU* cpu) {
     // FIXME: Cause_ce is described in generalException
     // And also described as 'additional' here
-    // So which one does it...
+    // So which one does it... doing it here :)
     generalException(cpu, ExceptionType::General, ExceptionCode::CpU);
+    Coprocessor0* cop0 = cpu->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_CAUSE, ~CAUSE_CE);
+    cop0->orRegisterHW(CO0_CAUSE, static_cast<uint32_t>(unitnumber) << 28u);
 }
 
 // Reserved Instruction Exception

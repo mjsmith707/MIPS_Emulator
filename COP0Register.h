@@ -49,7 +49,11 @@ class COP0Register {
     
         // Public accessor
         uint32_t getValue();
-    
+
+#ifdef TEST_PROJECT
+        // For unit testing
+        uint32_t getResetValue();
+#endif
         // Public setter
         void setValue(uint32_t value, bool hwmode);
     
