@@ -209,6 +209,7 @@ class CPU {
         bool sendInterrupt(MIPSInterrupt);
         void clearInterrupt(MIPSInterrupt);
     
+        // Gets the coprocessor0 object bound to this cpu
         Coprocessor0* getControlCoprocessor();
     
         // For unit testing interface

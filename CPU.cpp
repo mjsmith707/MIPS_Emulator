@@ -108,8 +108,7 @@ void CPU::start() {
     dispatchLoop();
 }
 
-// Public function to signal to the thread bound to the cpu
-// This is very very temporary until proper interrupts are in
+// Public function to signal the cpu thread
 bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
     // Nonmaskable Interrupts/Thread signaling
     if (interrupt == MIPSInterrupt::HALT) {

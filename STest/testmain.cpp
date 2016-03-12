@@ -19,6 +19,7 @@
 #include "TrapTests.h"
 #include "ObsoleteBranchTests.h"
 #include "PrivilegedInstructionTests.h"
+#include "ExceptionTests.h"
 
 using namespace STest;
 
@@ -35,6 +36,7 @@ int main() {
     add_trap_tests();
     add_obsolete_branch_tests();
     add_privileged_instruction_tests();
+    add_exception_tests();
     
     run_tests();
 }

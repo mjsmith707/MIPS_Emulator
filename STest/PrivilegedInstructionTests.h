@@ -1,5 +1,5 @@
 //
-//  PrivilegedInstructionTests.hpp
+//  PrivilegedInstructionTests.h
 //  MIPS_Emulator
 //
 //  Created by Matt on 3/1/16.

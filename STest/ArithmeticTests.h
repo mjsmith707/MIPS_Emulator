@@ -1,5 +1,5 @@
 //
-//  ArithmeticTests.hpp
+//  ArithmeticTests.h
 //  MIPS_Emulator
 //
 //  Created by Matt on 1/28/16.
