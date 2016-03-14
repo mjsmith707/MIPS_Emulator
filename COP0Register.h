@@ -13,6 +13,7 @@
 
 #include <cstdint>  // uint32_t
 #include <thread>
+#include <mutex>
 #include <stdexcept>
 
 class COP0Register {
