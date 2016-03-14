@@ -11,7 +11,6 @@
 
 #include <cstdint>          // uint32_t
 #include <iostream>         // std::cerr
-#include <unordered_map>    // hash table (and soooo slowwwwww)
 #include "MMIO_Device.h"    // MMIO Device interface
 #include "Coprocessor0.h"   // Control Coprocessor Interface
 
@@ -29,8 +28,8 @@ class PMMU {
         // Only 32 addresses right now until I can find a faster solution...
         #define MMIOADDRESSTABLEMAX 32
         static uint32_t mmioAddressTable[MMIOADDRESSTABLEMAX];
+        static MMIO_Device* mmioDeviceTable[MMIOADDRESSTABLEMAX];
         static uint32_t mmioAddressTableSize;
-        static std::unordered_map<uint32_t, MMIO_Device*> mmioDeviceTable;
     
         // Virtual to Physical Address translation
         // Returns true on success
@@ -107,10 +106,13 @@ class PMMU {
             }
             
             // Check if address range was already mapped
+            auto addrtbl = device->getAddresses();
             for (size_t i=0; i<device->getAddresses().size(); i+=2) {
-                for (uint32_t addr=device->getAddresses()[i]; addr<=device->getAddresses()[i+1]; addr++) {
-                    auto itr = mmioDeviceTable.find(addr);
-                    if (itr != mmioDeviceTable.end()) {
+                for (size_t j=0; j<mmioAddressTableSize; j+=2) {
+                    if ((addrtbl[i] >= mmioAddressTable[j]) && (addrtbl[i] <= mmioAddressTable[j+1])) {
+                        return false;
+                    }
+                    if ((addrtbl[i+1] >= mmioAddressTable[j]) && (addrtbl[i+1] <= mmioAddressTable[j+1])) {
                         return false;
                     }
                 }
@@ -118,11 +120,10 @@ class PMMU {
             
             // Map the address ranges
             for (size_t i=0; i<device->getAddresses().size(); i+=2) {
-                for (uint32_t addr=device->getAddresses()[i]; addr<=device->getAddresses()[i+1]; addr++) {
-                    mmioDeviceTable.emplace(addr, device);
-                }
-                mmioAddressTable[mmioAddressTableSize] = device->getAddresses()[i];
-                mmioAddressTable[mmioAddressTableSize+1] = device->getAddresses()[i+1];
+                mmioAddressTable[mmioAddressTableSize] = addrtbl[i];
+                mmioAddressTable[mmioAddressTableSize+1] = addrtbl[i+1];
+                mmioDeviceTable[mmioAddressTableSize] = device;
+                mmioDeviceTable[mmioAddressTableSize+1] = device;
                 mmioAddressTableSize+=2;
             }
             
@@ -147,8 +148,8 @@ class PMMU {
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(vaddr);
-                    *byte = itr->second->readByte(vaddr);
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    *byte = device->readByte(vaddr);
                     return;
                 }
             }
@@ -167,10 +168,10 @@ class PMMU {
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(vaddr);
-                    *half = itr->second->readByte(vaddr);
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    *half = device->readByte(vaddr);
                     *half <<= 8;
-                    *half |= itr->second->readByte(vaddr+1);
+                    *half |= device->readByte(vaddr+1);
                     return;
                 }
             }
@@ -191,11 +192,15 @@ class PMMU {
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
+            MMIO_Device* device1 = nullptr;
+            MMIO_Device* device2 = nullptr;
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr1 >= mmioAddressTable[i]) && (vaddr1 <= mmioAddressTable[i+1])) {
+                    device1 = mmioDeviceTable[i];
                     found1 = true;
                 }
                 if ((vaddr2 >= mmioAddressTable[i]) && (vaddr2 <= mmioAddressTable[i+1])) {
+                    device2 = mmioDeviceTable[i];
                     found2 = true;
                 }
                 if (found1 && found2) {
@@ -204,8 +209,7 @@ class PMMU {
             }
             
             if (found1) {
-                auto itr1 = mmioDeviceTable.find(vaddr1);
-                *half = itr1->second->readByte(vaddr1);
+                *half = device1->readByte(vaddr1);
             }
             else {
                 uint8_t* frame1 = getFramePointer(vaddr1);
@@ -214,9 +218,8 @@ class PMMU {
             }
             
             if (found2) {
-                auto itr2 = mmioDeviceTable.find(vaddr2);
                 *half <<= 8;
-                *half |= itr2->second->readByte(vaddr2);
+                *half |= device2->readByte(vaddr2);
             }
             else {
                 uint8_t* frame2 = getFramePointer(vaddr2);
@@ -233,14 +236,14 @@ class PMMU {
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(vaddr);
-                    *word = itr->second->readByte(vaddr);
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    *word = device->readByte(vaddr);
                     *word <<= 8;
-                    *word |= itr->second->readByte(vaddr+1);
+                    *word |= device->readByte(vaddr+1);
                     *word <<= 8;
-                    *word |= itr->second->readByte(vaddr+2);
+                    *word |= device->readByte(vaddr+2);
                     *word <<= 8;
-                    *word |= itr->second->readByte(vaddr+3);
+                    *word |= device->readByte(vaddr+3);
                     return;
                 }
             }
@@ -266,8 +269,8 @@ class PMMU {
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(vaddr);
-                    itr->second->storeByte(vaddr, value);
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    device->storeByte(vaddr, value);
                     return;
                 }
             }
@@ -286,9 +289,9 @@ class PMMU {
                 for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                     if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                         // Found device
-                        auto itr = mmioDeviceTable.find(vaddr);
-                        itr->second->storeByte(vaddr, value >> 8);
-                        itr->second->storeByte(vaddr+1, value);
+                        MMIO_Device* device = mmioDeviceTable[i];
+                        device->storeByte(vaddr, value >> 8);
+                        device->storeByte(vaddr+1, value);
                         return;
                     }
                 }
@@ -308,11 +311,15 @@ class PMMU {
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
+            MMIO_Device* device1 = nullptr;
+            MMIO_Device* device2 = nullptr;
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr1 >= mmioAddressTable[i]) && (vaddr1 <= mmioAddressTable[i+1])) {
+                    device1 = mmioDeviceTable[i];
                     found1 = true;
                 }
                 if ((vaddr2 >= mmioAddressTable[i]) && (vaddr2 <= mmioAddressTable[i+1])) {
+                    device2 = mmioDeviceTable[i];
                     found2 = true;
                 }
                 if (found1 && found2) {
@@ -320,8 +327,7 @@ class PMMU {
                 }
             }
             if (found1) {
-                auto itr1 = mmioDeviceTable.find(vaddr1);
-                itr1->second->storeByte(vaddr1, value >> 8);
+                device1->storeByte(vaddr1, value >> 8);
             }
             else {
                 uint8_t* frame1 = getFramePointer(vaddr1);
@@ -330,8 +336,7 @@ class PMMU {
             }
             
             if (found2) {
-                auto itr2 = mmioDeviceTable.find(vaddr2);
-                itr2->second->storeByte(vaddr2, value);
+                device2->storeByte(vaddr2, value);
             }
             else {
                 uint8_t* frame2 = getFramePointer(vaddr2);
@@ -348,11 +353,11 @@ class PMMU {
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
                     // Found device
-                    auto itr = mmioDeviceTable.find(vaddr);
-                    itr->second->storeByte(vaddr, value >> 24);
-                    itr->second->storeByte(vaddr+1, value >> 16);
-                    itr->second->storeByte(vaddr+2, value >> 8);
-                    itr->second->storeByte(vaddr+3, value);
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    device->storeByte(vaddr, value >> 24);
+                    device->storeByte(vaddr+1, value >> 16);
+                    device->storeByte(vaddr+2, value >> 8);
+                    device->storeByte(vaddr+3, value);
                     return;
                 }
             }

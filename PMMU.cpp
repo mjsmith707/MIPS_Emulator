@@ -36,4 +36,4 @@ size_t PMMU::frameTableRamLimit;
 uint8_t* PMMU::frameTable[frameTableMax];
 uint32_t PMMU::mmioAddressTable[MMIOADDRESSTABLEMAX];
 uint32_t PMMU::mmioAddressTableSize;
-std::unordered_map<uint32_t, MMIO_Device*> PMMU::mmioDeviceTable;
+MMIO_Device* PMMU::mmioDeviceTable[MMIOADDRESSTABLEMAX];
