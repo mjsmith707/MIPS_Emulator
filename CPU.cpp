@@ -436,7 +436,7 @@ std::string CPU::debugPrint() {
         PC = branchAddr; \
     } \
 \
-    memory->readWord(PC, &IR, &cop0); \
+    memory->readWordIF(PC, &IR); \
     PC += 4; \
 \
     if (branchDelay) { \

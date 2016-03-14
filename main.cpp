@@ -44,6 +44,7 @@ int main(int argc, const char * argv[]) {
     
     // Load binary
     loadFile(consoleUI, argv[1], memory, cpu0);
+    //std::this_thread::sleep_for(std::chrono::seconds(30));
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));

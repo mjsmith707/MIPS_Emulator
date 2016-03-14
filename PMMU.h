@@ -130,6 +130,15 @@ class PMMU {
             return true;
         }
     
+        // Experimental fast instruction fetch
+        inline static void readWordIF(uint32_t vaddr, uint32_t* word) {
+            uint32_t* frame = (uint32_t*)getFramePointer(vaddr);
+            vaddr &= 0x00000FFF;
+            frame += vaddr >> 2;
+            *word = *frame;
+            *word = __builtin_bswap32(*word);
+        }
+    
         // Memory reading
         // Read a byte
         inline static void readByte(uint32_t vaddr, uint8_t* byte, Coprocessor0* coproc) {

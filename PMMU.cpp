@@ -22,6 +22,7 @@ PMMU::PMMU(size_t ramSize) {
 // Destructor
 // Cleans up frame table
 PMMU::~PMMU() {
+    // Clean up frame table
     for (size_t i=0; i<frameTableMax; i++) {
         if (frameTable[i] != NULL) {
             delete[] frameTable[i];
