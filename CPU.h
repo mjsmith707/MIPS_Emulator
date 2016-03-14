@@ -26,6 +26,8 @@ class CPU {
     public:
     // Interrupt Definitions
     enum MIPSInterrupt {
+        SW0 = 0,
+        SW1 = 1,
         HW0 = 2,
         HW1 = 3,
         HW2 = 4,

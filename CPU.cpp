@@ -418,7 +418,7 @@ std::string CPU::debugPrint() {
 // Checks if there is a pending interrupt
 // If so then do some further processing
 #define checkForInts()  \
-    if ((cop0.getRegister(CO0_CAUSE) & CAUSE_RIPL) > 0) { \
+    if ((cop0.getRegister(CO0_CAUSE) & CAUSE_INTS) > 0) { \
         goto HANDLE_INTERRUPT; \
     } \
 
@@ -483,7 +483,7 @@ void CPU::dispatchLoop() {
         &&COP0,     // 0x10
         &&COP1,     // 0x11
         &&COP2,     // 0x12
-        &&RESERVED_INSTRUCTION,          // 0x13
+        &&COP1X,    // 0x13
         &&BEQL,     // 0x14
         &&BNEL,     // 0x15
         &&BLEZL,    // 0x16
@@ -1012,6 +1012,12 @@ dispatchStart:
         
     // 0x10 COP0 Instructions
     COP0:
+        // Check if allowed
+        if (!cop0.inKernelMode()) {
+            if ((cop0.getRegister(CO0_STATUS) & STATUS_CU0) == 0) {
+                throw CoprocessorUnusableException(CoprocessorUnusableException::FaultingCoprocessor::CO0);
+            }
+        }
         DECODE_CO();
         if (co == 0) {
             DECODE_RS();
@@ -1024,13 +1030,16 @@ dispatchStart:
     
     // 0x11 COP1
     COP1:
-        throw CoprocessorUnusableException(CoprocessorUnusableException::CO1);
+        // FIXME: I _think_ this is reserved, unusable only happens if the coprocessor exists
+        throw ReservedInstructionException();
     
     // 0x12 COP2
     COP2:
-        throw CoprocessorUnusableException(CoprocessorUnusableException::CO2);
+        throw ReservedInstructionException();
         
     // 0x13
+    COP1X:
+        throw ReservedInstructionException();
     
     // 0x14 Branch on Equal Likely
     BEQL:
@@ -1247,8 +1256,7 @@ dispatchStart:
     
     // 0x30 Load Linked Word
     LL:
-        goto LW;
-        //goto UNIMPLEMENTED_INSTRUCTION;
+        goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
     // 0x31 Load Word to Floating Point
@@ -1282,8 +1290,7 @@ dispatchStart:
     
     // 0x38 Store Conditional Word
     SC:
-        goto SW;
-        //goto UNIMPLEMENTED_INSTRUCTION;
+        goto UNIMPLEMENTED_INSTRUCTION;
         //DISPATCH();
     
     // 0x39 Store Word from Floating Point
@@ -2088,7 +2095,7 @@ dispatchStart:
         DECODE_SEL();
         DECODE_RT();
         DECODE_RD();
-        registers[rt] = cop0.getRegister(rd, sel);
+        registers[rt] = cop0.getRegisterSW(rd, sel);
         DISPATCH();
     
     // 0x04 Move To Coprocessor0
@@ -2143,7 +2150,7 @@ dispatchStart:
     
     // 0x1F Debug Exception Return
     DERET:
-        goto UNIMPLEMENTED_INSTRUCTION;
+        goto RESERVED_INSTRUCTION;
         //DISPATCH();
 /*
  * === END COP0 ===
@@ -2260,6 +2267,16 @@ void CPU::serviceInterrupt() {
     // HW0
     else if (((cause & CAUSE_IP2) > 0) && ((status & STATUS_IM2) > 0)) {
         lastReceivedInt = MIPSInterrupt::HW0;
+        throw InterruptException();
+    }
+    // SW1
+    else if (((cause & CAUSE_IP1) > 0) && ((status & STATUS_IM1) > 0)) {
+        lastReceivedInt = MIPSInterrupt::SW1;
+        throw InterruptException();
+    }
+    // SW0
+    else if (((cause & CAUSE_IP0) > 0) && ((status & STATUS_IM0) > 0)) {
+        lastReceivedInt = MIPSInterrupt::SW0;
         throw InterruptException();
     }
 }

@@ -82,7 +82,7 @@ class PMMU {
                         // Disabled for performance reasons during
                         // normal use as it is not guaranteed
                         // to be all zeroes
-                        for (int i=0; i<pageSize; i++) {
+                        for (uint32_t i=0; i<pageSize; i++) {
                             frameTable[paddr][i] = 0;
                         }
                     #endif

@@ -138,6 +138,7 @@
 #define CAUSE_FDCI      0x00200000
 #define CAUSE_ASE2      0x00030000
 #define CAUSE_RIPL      0x0000FC00
+#define CAUSE_INTS      0x0000FF00
 #define CAUSE_IP7       0x00008000
 #define CAUSE_IP6       0x00004000
 #define CAUSE_IP5       0x00002000
@@ -216,10 +217,13 @@ class Coprocessor0 {
         ~Coprocessor0();
     
         // Tests for various operating modes
-        inline bool inKernelMode();
+        bool inKernelMode();
         inline bool inSupervisorMode();
         inline bool inUserMode();
         bool interruptsEnabled();
+    
+        // Returns the value in a register for software
+        uint32_t getRegisterSW(uint8_t regnum, uint8_t sel);
 
         // Returns the value in a register
         uint32_t getRegister(uint8_t regnum, uint8_t sel);

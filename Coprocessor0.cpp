@@ -114,9 +114,9 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     
     // Status Register
     // reset: 00000000010000000000000000000100
-    // mask1: 11001110011110001111111100010111
-    // mask2: 11001010011110001111111100010111
-    registerFile[12][0] = new COP0Register(0x400004, 0xCE78FF17, 0xCA78FF17);
+    // mask1: 00011110011110001111111100010111
+    // mask2: 00011010011110001111111100010111
+    registerFile[12][0] = new COP0Register(0x400004, 0x1E78FF17, 0x1A78FF17);
     
     // IntCtl Register
     // Timer Int = HW0
@@ -321,7 +321,7 @@ Coprocessor0::~Coprocessor0() {
 
 // Helper functions
 // Tests whether the processor is in kernel mode
-inline bool Coprocessor0::inKernelMode() {
+bool Coprocessor0::inKernelMode() {
     return (((registerFile[12][0]->getValue() & STATUS_KSU) == 0x0)
             || ((registerFile[12][0]->getValue() & STATUS_EXL) > 0x0)
             || ((registerFile[12][0]->getValue() & STATUS_ERL) > 0x0));
@@ -355,6 +355,15 @@ uint32_t Coprocessor0::getRegisterReset(uint8_t regnum, uint8_t sel) {
 }
 #endif
 
+// Gets a coprocessor0 register in ISA/Software mode
+uint32_t Coprocessor0::getRegisterSW(uint8_t regnum, uint8_t sel) {
+    if (registerFile[regnum][sel] == nullptr) {
+        // Undefined
+        return 0;
+    }
+    return registerFile[regnum][sel]->getValue();
+}
+
 // Retrives a coprocessor0 register
 uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
     if (registerFile[regnum][sel] == nullptr) {
@@ -366,7 +375,8 @@ uint32_t Coprocessor0::getRegister(uint8_t regnum, uint8_t sel) {
 // Sets a coprocessor0 register in ISA/Software mode
 void Coprocessor0::setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value) {
     if (registerFile[regnum][sel] == nullptr) {
-        throw std::runtime_error("Invalid coprocessor register addressed!");
+        // Undefined
+        return;
     }
     // Special behavior for Count/Compare Registers
     if ((regnum == 11) && (sel == 0)) {
