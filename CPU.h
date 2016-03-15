@@ -18,6 +18,7 @@
 #include "ConsoleUI.h"      // stdout access
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
+#include <fstream>
 
 class MIPSException;        // Exception class forward reference
 
@@ -109,6 +110,9 @@ class CPU {
         bool branch;
         bool branchDelay;
         uint32_t branchAddr;
+    
+        // Atomic LL/SC
+        bool LLBit;
     
         // Currently decoded fields
         uint8_t opcode;

@@ -152,11 +152,12 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     registerFile[14][0] = new COP0Register(0x0, 0xFFFFFFFF, 0xFFFFFFFF);
     
     // Processor Identification Register
-    // No Opts, COMP_LEGACY, IMP_R3000, REV_R3000
-    // reset: 11111111000000000000001000100000
+    // FIXME: ?? No Opts, COMP_LEGACY, IMP_R3000, REV_R3000
+    // old reset: 11111111000000000000001000100000
+    // new reset: 00000000000000000000010000000000
     // mask1: 11111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
-    registerFile[15][0] = new COP0Register(0xFF000220, 0xFFFFFFFF, 0x0);
+    registerFile[15][0] = new COP0Register(0x00000400, 0xFFFFFFFF, 0x0);
     
     // EBase Register
     // No write-gate

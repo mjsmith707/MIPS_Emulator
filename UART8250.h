@@ -12,7 +12,9 @@
 #include <cstdint>
 #include <vector>
 #include <iostream>
+#include <atomic>
 #include "MMIO_Device.h"
+#include "SharedQueue.h"
 
 // Also more or less a c&p job from C# version
 
@@ -23,20 +25,27 @@ class UART8250 : public MMIO_Device {
     
         // UART Base address
         #define UART_BASE 0xB40003F8
+        //#define UART_BASE 0x000003F8
+    
+        // Receive Buffer
+        Shared_Queue<char> receiveBuffer;
+    
+        // Send Buffer
+        Shared_Queue<char> sendBuffer;
     
         // Port Registers
-        volatile uint8_t THR;
-        volatile uint8_t RBR;
-        volatile uint8_t DLL;
-        volatile uint8_t IER;
-        volatile uint8_t DLH;
-        volatile uint8_t IIR;
-        volatile uint8_t FCR;
-        volatile uint8_t LCR;
-        volatile uint8_t MCR;
-        volatile uint8_t LSR;
-        volatile uint8_t MSR;
-        volatile uint8_t SR;
+        std::atomic<uint8_t> THR;
+        std::atomic<uint8_t> RBR;
+        std::atomic<uint8_t> DLL;
+        std::atomic<uint8_t> IER;
+        std::atomic<uint8_t> DLH;
+        std::atomic<uint8_t> IIR;
+        std::atomic<uint8_t> FCR;
+        std::atomic<uint8_t> LCR;
+        std::atomic<uint8_t> MCR;
+        std::atomic<uint8_t> LSR;
+        std::atomic<uint8_t> MSR;
+        std::atomic<uint8_t> SR;
     
         // Test if Divisor Latch Access Bit is set
         inline bool DLABSet();

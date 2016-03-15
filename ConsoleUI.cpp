@@ -26,7 +26,7 @@ void ConsoleUI::waitForInput() {
     
     // Blocking input/output loop
     while (ch != '~') {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::nanoseconds(50));
         
         // Check if character is available from uart
         if (uart->getChar(&ch)) {

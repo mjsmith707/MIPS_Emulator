@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <thread>
 #include <sstream>
+#include <fstream>
 
 #include "PMMU.h"
 #include "CPU.h"
@@ -17,6 +18,7 @@
 #include "ConsoleUI.h"
 #include "elfio/elfio.hpp"
 
+void loadRaw(ConsoleUI*, const char*, PMMU*, CPU*);
 void loadFile(ConsoleUI*, const char*, PMMU*, CPU*);
 void waitForInput(UART8250* uart);
 
@@ -43,12 +45,13 @@ int main(int argc, const char * argv[]) {
     CPU* cpu0 = new CPU(consoleUI, memory);
     
     // Load binary
+    //loadRaw(consoleUI, argv[1], memory, cpu0);
     loadFile(consoleUI, argv[1], memory, cpu0);
-    //std::this_thread::sleep_for(std::chrono::seconds(30));
+    //std::this_thread::sleep_for(std::chrono::seconds(15));
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
-    //std::this_thread::sleep_for(std::chrono::seconds(60));
+    //std::this_thread::sleep_for(std::chrono::seconds(60));
     
     // Wait for console input
     consoleUI->waitForInput();
@@ -66,6 +69,36 @@ int main(int argc, const char * argv[]) {
     return 0;
 }
 
+// Loads a flat binary file and sets program counter to reset exception vector 0xbfc00000
+void loadRaw(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu) {
+    std::fstream fhandle;
+    fhandle.open(filename, std::ios::in | std::ios::binary);
+    if (!fhandle.is_open()) {
+        std::cerr << "Failed to load file: " << filename << std::endl;
+        exit(-1);
+    }
+    
+    fhandle.seekg(0, fhandle.end);
+    size_t len = fhandle.tellg();
+    fhandle.seekg(0, fhandle.beg);
+    
+    char* buff = new char[len];
+    
+    fhandle.read(buff, len);
+    if (!fhandle) {
+        std::cerr << "Failed to read file: " << filename << ", only read " << fhandle.gcount() << " bytes" << std::endl;
+        exit(-1);
+    }
+    
+    uint32_t paddr = 0xbfc00000;
+    for (size_t i=0; i<len; i++, paddr++) {
+        memory->storeByte(paddr, buff[i], cpu->getControlCoprocessor());
+    }
+    cpu->setPC(0xbfc00000);
+}
+
+// Loads ELF file formats
+// ... it's also not 100% working
 void loadFile(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu) {
     ELFIO::elfio reader;
     if (!reader.load(filename)) {
@@ -130,5 +163,6 @@ void loadFile(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu
             }
         }
     }
-    //consoleUI->sendConsoleMsg(ss.str());
+    consoleUI->sendConsoleMsg(ss.str());
+    //std::cout << ss.str() << std::endl;
 }

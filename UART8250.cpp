@@ -79,8 +79,14 @@ uint8_t UART8250::readByte(uint32_t address) {
                 return DLL;
             }
             else {
+                if (!sendBuffer.isEmpty()) {
+                    RBR = sendBuffer.pop();
+                }
                 // Clear Data Ready bit
-                LSR &= ~0x1;
+                if (sendBuffer.isEmpty()) {
+                    LSR &= ~0x1;
+                }
+                
                 return RBR;
             }
         }
@@ -124,7 +130,8 @@ void UART8250::storeByte(uint32_t address, uint8_t value) {
             }
             else {
                 THR = value;
-                LSR &= ~0x40;
+                receiveBuffer.push(THR);
+                //LSR &= ~0x40;
             }
             break;
         }
@@ -169,14 +176,22 @@ void UART8250::storeByte(uint32_t address, uint8_t value) {
 // Method to receive character from console
 void UART8250::sendChar(char ch) {
     // Save to buffer
-    RBR = (uint8_t)ch;
+    sendBuffer.push(ch);
     // Signal that there is data available
     LSR |= 0x1;
 }
 
 // Method to send a char to stdout
 bool UART8250::getChar(char* ch) {
-    // 00100000
+    if (!receiveBuffer.isEmpty()) {
+        *ch = receiveBuffer.pop();
+        LSR |= 0x40;
+        return true;
+    }
+    else {
+        return false;
+    }
+    /*
     if ((LSR & 0x40) == 0) {
         *ch = THR;
         LSR |= 0x40;
@@ -185,4 +200,5 @@ bool UART8250::getChar(char* ch) {
     else {
         return false;
     }
+     */
 }

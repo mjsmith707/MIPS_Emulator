@@ -86,13 +86,13 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0), exceptRestartLoop(false) {
+CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
 
-CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0), exceptRestartLoop(false) {
+CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
@@ -375,7 +375,6 @@ std::string CPU::debugPrint() {
     << "sel = " << std::dec << (int)sel << std::endl
     << "=== END Decode ===" << std::endl;
     ss << std::dec << "=== Disassembly ===" << std::endl;
-
     if (branchDelay) {
         ss << "-- Delay Slot --" << std::endl;
     }
@@ -392,7 +391,7 @@ std::string CPU::debugPrint() {
         }
         case 0x10: {
             ss << "COP0 RT RD SEL" << std::endl
-            << cop0Names[rs] << " " << registerNames[rt] << ", " << registerNames[rd] << ", " << (imm&0x7) << std::endl;
+            << cop0Names[rs] << " " << registerNames[rt] << ", " << registerNames[rd] << ", " << sel << std::endl;
             break;
         }
         case 0x1C: {
@@ -1051,6 +1050,9 @@ dispatchStart:
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
         }
+        else {
+            PC += 4;    // Skip delay slot instruction
+        }
         DISPATCH();
     
     // 0x15 Branch on Not Equal Likely
@@ -1063,6 +1065,9 @@ dispatchStart:
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
         }
+        else {
+            PC += 4;    // Skip delay slot instruction
+        }
         DISPATCH();
     
     // 0x16 Branch on Less Than or Equal to Zero Likely
@@ -1074,6 +1079,9 @@ dispatchStart:
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
         }
+        else {
+            PC += 4;    // Skip delay slot instruction
+        }
         DISPATCH();
     
     // 0x17 Branch on Greater Than Zero Likely
@@ -1084,6 +1092,9 @@ dispatchStart:
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
+        }
+        else {
+            PC += 4;    // Skip delay slot instruction
         }
         DISPATCH();
     
@@ -1251,13 +1262,21 @@ dispatchStart:
     
     // 0x2F Cache
     CACHE:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        //goto UNIMPLEMENTED_INSTRUCTION;
+        DISPATCH();
     
     // 0x30 Load Linked Word
     LL:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMMSE();
+        tempi32 = immse;
+        tempi32 += registers[rs];
+        memory->readWord(tempi32, &tempu32, &cop0);
+        tempi32 = tempu32;
+        registers[rt] = tempi32;
+        LLBit = true;
+        DISPATCH();
     
     // 0x31 Load Word to Floating Point
     LWC1:
@@ -1290,8 +1309,16 @@ dispatchStart:
     
     // 0x38 Store Conditional Word
     SC:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        DECODE_RS();
+        DECODE_RT();
+        DECODE_IMMSE();
+        tempi32 = immse;
+        tempi32 += registers[rs];
+        if (LLBit) {
+            memory->storeWord(tempi32, registers[rt], &cop0);
+        }
+        registers[rt] = LLBit == true ? 1 : 0;
+        DISPATCH();
     
     // 0x39 Store Word from Floating Point
     SWC1:
@@ -1453,8 +1480,8 @@ dispatchStart:
     
     // 0x0F Sync
     SYNC:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        //goto UNIMPLEMENTED_INSTRUCTION;
+        DISPATCH();
     
     // 0x10 Move From HI Register
     MFHI:
@@ -1970,6 +1997,9 @@ dispatchStart:
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
         }
+        else {
+            PC += 4;    // Skip delay slot instruction
+        }
         DISPATCH();
     
     // 0x03 Branch on Greater Than or Equal to Zero Likely
@@ -1980,6 +2010,9 @@ dispatchStart:
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
+        }
+        else {
+            PC += 4;    // Skip delay slot instruction
         }
         DISPATCH();
     
@@ -2070,6 +2103,9 @@ dispatchStart:
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
         }
+        else {
+            PC += 4;    // Skip delay slot instruction
+        }
         DISPATCH();
     
     // 0x13 Branch on Greater Than Zero and Link Likely
@@ -2081,6 +2117,9 @@ dispatchStart:
             branchDelay = true;
             branchAddr = PC;
             branchAddr += (int16_t)imm << 2;
+        }
+        else {
+            PC += 4;    // Skip delay slot instruction
         }
         DISPATCH();
 /*
@@ -2140,7 +2179,7 @@ dispatchStart:
         }
         // MIPS16e not implemented (optional)
         PC = tempu32;
-        // FIXME: LLbit = 0
+        LLBit = false;
         
         // Manual is extremely unclear about how and when CAUSE_IP bits are cleared
         // If they aren't we're just going to interrupt loop forever
@@ -2232,6 +2271,7 @@ dispatchStart:
     if (exceptRestartLoop) {
         goto dispatchStart;
     }
+
 }
 
 // CPU Thread interrupt servicing
