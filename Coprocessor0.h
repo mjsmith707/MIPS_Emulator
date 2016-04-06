@@ -9,6 +9,7 @@
 #ifndef Coprocessor0_h
 #define Coprocessor0_h
 
+#include "SharedDefs.h"
 #include "COP0Register.h"
 #include <thread>
 #include <atomic>
@@ -49,11 +50,39 @@
 #define CO0_ERROREPC    30,0
 
 // Index Register Fields (CP0 Register 0, Select 0)
-#define INDEX_PBIT      0x80000000
+#define INDEX_P         0x80000000
+#define INDEX_INDEX     0x0000003F
+
+// Random Register Fields (CP0 Register 1, Select 0)
+#define RANDOM_RANDOM   0x0000003F
+
+// EntryLo0 Register Fields (CP0 Register 2, Select 0)
+#define ENTRYLO0_FILL   0xC0000000
+#define ENTRYLO0_PFN    0x3FFFFFC0
+#define ENTRYLO0_C      0x00000038
+#define ENTRYLO0_D      0x00000004
+#define ENTRYLO0_V      0x00000002
+#define ENTRYLO0_G      0x00000001
+
+// EntryLo1 Register Fields (CP0 Register 3, Select 0)
+#define ENTRYLO1_FILL   0xC0000000
+#define ENTRYLO1_PFN    0x3FFFFFC0
+#define ENTRYLO1_C      0x00000038
+#define ENTRYLO1_D      0x00000004
+#define ENTRYLO1_V      0x00000002
+#define ENTRYLO1_G      0x00000001
 
 // Context Register Fields (CP0 Register 4, Select 0)
 #define CONTEXT_PTEBASE 0xFF800000
 #define CONTEXT_BADVPN2 0x007FFFF0
+
+// ContextConfig Register Fields (CP0 Register 4, Select 1)
+#define CONTEXTCONFIG_VIRTUALINDEX  0xFFFFFFFF
+
+// UserLocal Register Fields (CP0 Register 4, Select 2)
+#define USERLOCAL_USERINFORMATION   0xFFFFFFFF
+
+
 
 // PageMask Register Fields (CP0 Register 5, Select 0)
 #define PAGEMASK_MASK   0x1FFFE000
@@ -209,6 +238,9 @@ class Coprocessor0 {
         // Count Compare Thread
         std::thread* countCompThread;
     
+        // Previous Cycle Counter for Random register
+        uint64_t lastCycleCount;
+    
         // Private thread count/compare loop
         void countCompare(CPU* cpu);
     
@@ -251,6 +283,9 @@ class Coprocessor0 {
         // Called by CPU to start and stop the count/compare registers
         void startCounter(CPU* cpu);
         void stopCounter();
+    
+        // Called by CPU to update Random Register
+        void updateRandom(uint64_t);
 };
 
 #endif /* Coprocessor0_h */

@@ -9,7 +9,7 @@
 #include "Coprocessor0.h"
 #include "CPU.h"
 
-Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) {
+Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr), lastCycleCount(0) {
     // Initialize Registers
     // Too easy to just have normal registers
     // we have to deal with the sel field...
@@ -23,7 +23,7 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     }
     
     // Index Register
-    // 48 Entry TLB (6 bits) so Index bits are masked as RW
+    // 64 Entry TLB (6 bits) so Index bits are masked as RW
     // reset: 00000000000000000000000000000000
     // mask1: 10000000000000000000000000111111
     // mask2: 00000000000000000000000000111111
@@ -50,6 +50,18 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     // mask2: 11111111100000000000000000000000
     registerFile[4][0] = new COP0Register(0x0, 0xFFFFFFF0, 0xFF800000);
     
+    // ContextConfig Register
+    // reset: 00000000011111111111111111110000
+    // mask1: 11111111111111111111111111111111
+    // mask2: 11111111111111111111111111111111
+    registerFile[4][1] = new COP0Register(0x007FFFF0, 0xFFFFFFFF, 0xFFFFFFFF);
+    
+    // UserLocal Register
+    // reset: 00000000000000000000000000000000
+    // mask1: 11111111111111111111111111111111
+    // mask2: 11111111111111111111111111111111
+    registerFile[4][2] = new COP0Register(0x0, 0xFFFFFFFF, 0xFFFFFFFF);
+    
     // PageMask Register
     // reset: 00000000000000000000000000000000
     // mask1: 00011111111111111111100000000000
@@ -63,6 +75,7 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     registerFile[5][1] = new COP0Register(0x0, 0xD800001F, 0x18000000);
     
     // Wired Register
+    // 64 Entries Potentially
     // reset: 00000000000000000000000000000000
     // mask1: 00000000000000000000000000111111
     // mask2: 00000000000000000000000000111111
@@ -167,34 +180,101 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     registerFile[15][1] = new COP0Register(0x80000000, 0xFFFFF3FF, 0x3FFFF000);
     
     // Configuration Register 0
-    // reset: 10000000000000001000000010000000
-    // mask1: 10000000000000001111111110000111
+    // M = 1 (Config1 implemented)
+    // K23 = 000
+    // KU = 000
+    // BE = 1 (Big Endian)
+    // AT = 00 (MIPS32)
+    // AR = 001 (Revision 2+)
+    // MT = 001 (Standard TLB)
+    // VI = 0 (Not Virtual ICache)
+    // K0 = 011 (Cacheable) FIXME: Field marked R/W? Might not matter..
+    // reset: 10000000000000001000010010000011
+    // mask1: 10000000000000001111111110001111
     // mask2: 00000000000000000000000000000111
-    //								  10000011
-    registerFile[16][0] = new COP0Register(0x80008080, 0x8000FF87, 0x7);
+    registerFile[16][0] = new COP0Register(0x80008483, 0x8000FF8F, 0x7);
     
     // Configuration Register 1
-    // 64 TLB, 64 Icache, No Icache, Direct Mapped,
-    // 64 Dcache, No Dcache, Direct Mapped
-    // No Coprocessor 2 (Yet)          -
-    // No Perf Counter, No Watch, No Code Comp, No EJTAG
-    // No FPU                                -
-    // reset: 00111111000000000000000000000000
+    // M = 1 (Config2 implemented)
+    // FIXME: MMU.size - 1 = 000000 ?? (Number of entries on reset)
+    // IS (I-Cache sets per way) = 000 (64) FIXME: Don't care?
+    // IL (I-Cache line size) = 000 (No I-Cache present) FIXME: Might need for proper OS support even if unused.
+    // IA (I-Cache associativity) = 000 (Direct Mapped)
+    // DS (D-Cache sets per way) = 000 (64) FIXME: Don't care?
+    // DL (D-Cache line size) = 000 (No D-Cache present) FIXME: Might need for proper OS support even if unused.
+    // DA (D-Cache associativity) = 000 (Direct Mapped)
+    // C2 (Coprocessor 2 implemented) = 0 (No)
+    // MD (MDMX ASE Implemented) = 0 (No)
+    // PC (Performance Counter Registers) = 0 (No)
+    // WR (Watch Registers) = 0 (No)
+    // CA (MIPS16e Implemented) = 0 (No)
+    // EP (EJTAG Implemented) = 0 (No)
+    // FP (FPU Implemented) = 0 (No) TODO: Add FPU Support
+    // Old reset: 00111111000000000000000000000000 (64 TLB)
+    // reset: 10000000000000000000000000000000
     // mask1: 11111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
-    registerFile[16][1] = new COP0Register(0x3F000000, 0xFFFFFFFF, 0x0);
+    registerFile[16][1] = new COP0Register(0x1, 0xFFFFFFFF, 0x0);
     
     // Configuration Register 2
-    // reset: 00000000000000000000000000000000
-    // mask1: 00000000000000000000000000000000
+    // M = 1 (Config3 implemented)
+    // TU = 000 (Impl-specific tertiary cache control/status, not implemented)
+    // TS = 0000 (Tertiary cache sets per way Not implemented)
+    // TL = 0000 (Tertiary cache line size Not implemented)
+    // TA = 0000 (Tertiary cache associativity Not Implemented)
+    // SU = 0000 (Secondary cache not implemented)
+    // SL = 0000 (Secondary cache line size Not Implemented)
+    // SA = 0000 (Secondary cache associativity Not Implemented)
+    // reset: 10000000000000000000000000000000
+    // mask1: 11111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
-    registerFile[16][2] = new COP0Register(0x0, 0x0, 0x0);
+    registerFile[16][2] = new COP0Register(0x1, 0xFFFFFFFF, 0x0);
     
     // Configuration Register 3
-    // reset: 00000000000000000000000000000000
-    // mask1: 00000000000000000000000000000000
+    // M = 1 (Config4 implemented)
+    // CMGCR (Coherency Manager) = 0 (Not implemented)
+    // MSAP (MIPS SIMD MSA) = 0 (Not implemented)
+    // BP (BadInstrP register) = 0 (Not implemented)
+    // BI (BadInstr register) = 0 (Not implemented)
+    // SC (Segment Control registers) = 0 (Not implemented)
+    // PW (Hardware Page Table Walker) = 0 (Not implemented)
+    // VZ (Virtualization Module) = 0 (Cool but Not implemented)
+    // IPLW (With of Status_ipl and Cause_ipl) = 00 (6 bits)
+    // MMAR (microMIPS32 arch rev) = 000 (Unused see: Config3_ISA)
+    // MCU (MCU ASE) = 0 (Not implemented)
+    // ISAOnExec (Entry vectoring for MIPS32/microMIPS32) = 0 (microMIPS not implemented)
+    // ISA (ISA availability) = 00 (Only MIPS32 Available)
+    // URLI (UserLocal Register) = 0 (Not implemented)
+    // RXI (RIE and XIE bits in PageGrain implemented) = 0 FIXME: In use in other parts (exception code)?
+    // DSP2P (MIPS DSP Rev2) = 0 (I'd love sound too but not implemented)
+    // DSPP (MIPS DSP Rev1) = 0 (See above)
+    // CTXTC (ContextConfig register) = 0 (Not implemented)
+    // ITL (IFlowtrace) = 0 (Not implemented)
+    // LPA (Large Physical Address Support) = 0 (Not implemented)
+    // VEIC (External Interrupt Controller Mode) = 0 (Not implemented)
+    // VInt (Vectored Interrupts implemented) = 0 (Not implemented) FIXME: Required 1 for R2?
+    // SP (1KB page support) = 0 (Not implemented) FIXME: Required 1 for R2?
+    // CDMM (Common Device Memory Map) = 0 (Not implemented) TODO: This would be good to have
+    // MT (MT Module) = 0 (Not implemented)
+    // SM (SmartMIPS ASE) = 0 (Not implemented)
+    // TL (Trace Logic) = 0 (Not implemented)
+    // reset: 10000000000000000000000000000000
+    // mask1: 10111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
-    registerFile[16][3] = new COP0Register(0x0, 0x0, 0x0);
+    registerFile[16][3] = new COP0Register(0x80000000, 0xBFFFFFFF, 0x0);
+    
+    // Configuration Register 4
+    // M = 0 (Config5 not implemented)
+    // IE (TLB Invalidate instruction support) = 00 (Not supported)
+    // AE (EntryHI_asid extended to 10 bits) = 0 (No)
+    // VTLB-SizeExt = 0000
+    // KScrExist (kernel-mode scratch registers available) = 00000000 (zero) FIXME: Easy to implement?
+    // MMUExtDef = 00 (Reserved)
+    // Bits 13-0 Reserved
+    // reset: 00000000000000000000000000000000
+    // mask1: 11111111111111111110000000000000
+    // mask2: 00000000000000000000000000000000
+    registerFile[16][4] = new COP0Register(0x0, 0xFFFFE000, 0x0);
     
     // Reserved Register
     // reset: 00000000000000000000000000000000
@@ -362,6 +442,14 @@ uint32_t Coprocessor0::getRegisterSW(uint8_t regnum, uint8_t sel) {
         // Undefined
         return 0;
     }
+    // Special Behavior for Random Register
+    if ((regnum == 1) && (sel == 0)) {
+        // Since we don't have the cycle counter
+        // fudge it from the last one, that should
+        // be good enough
+        lastCycleCount *= lastCycleCount+1;
+        updateRandom(lastCycleCount);
+    }
     return registerFile[regnum][sel]->getValue();
 }
 
@@ -386,6 +474,14 @@ void Coprocessor0::setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value) {
             registerFile[13][0]->andValue(~CAUSE_TI, true);
             registerFile[13][0]->andValue(~CAUSE_IP7, true);
         }
+    }
+    // Special Behavior for Random Register
+    else if ((regnum == 1) && (sel == 0)) {
+        // Since we don't have the cycle counter
+        // fudge it from the last one, that should
+        // be good enough
+        lastCycleCount *= lastCycleCount+1;
+        updateRandom(lastCycleCount);
     }
     registerFile[regnum][sel]->setValue(value, false);
 }
@@ -469,4 +565,22 @@ void Coprocessor0::stopCounter() {
         delete countCompThread;
         countCompThread = nullptr;
     }
+}
+
+// Called by CPU or Coprocessor to update Random Register
+// This is done every time the Random register is accessed.
+// It is a decrement counter per cycle to achieve
+// so-called 'randomization' for TLB page replacement.
+// This only needs to be updated any time the Random register
+// is accessed, rather than in the hot loop.
+void Coprocessor0::updateRandom(uint64_t cycleCounter) {
+    uint32_t random = registerFile[1][0]->getValue();
+    uint32_t wired = registerFile[6][0]->getValue();
+    
+    random -= cycleCounter;
+    random %= TLBMAXENTRIES-1 - wired;
+    random += wired;
+    
+    registerFile[1][0]->setValue(random, true);
+    lastCycleCount = cycleCounter;
 }

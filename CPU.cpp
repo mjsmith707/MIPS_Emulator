@@ -806,14 +806,14 @@ void CPU::dispatchLoop() {
     
     static void* cop0COTable[32] {
         &&RESERVED_INSTRUCTION,          // 0x00
-        &&RESERVED_INSTRUCTION,          // 0x01
-        &&RESERVED_INSTRUCTION,          // 0x02
+        &&TLBR,     // 0x01
+        &&TLBWI,    // 0x02
         &&RESERVED_INSTRUCTION,          // 0x03
         &&RESERVED_INSTRUCTION,          // 0x04
         &&RESERVED_INSTRUCTION,          // 0x05
-        &&RESERVED_INSTRUCTION,          // 0x06
+        &&TLBWR,    // 0x06
         &&RESERVED_INSTRUCTION,          // 0x07
-        &&RESERVED_INSTRUCTION,          // 0x08
+        &&TLBP,     // 0x08
         &&RESERVED_INSTRUCTION,          // 0x09
         &&RESERVED_INSTRUCTION,          // 0x0A
         &&RESERVED_INSTRUCTION,          // 0x0B
@@ -2161,6 +2161,29 @@ dispatchStart:
             cop0.orRegisterHW(CO0_STATUS, STATUS_IE);
         }
         DISPATCH();
+/*
+ * === END COP0 ===
+ */
+        
+/*
+ *  === COP0 CO Instructions ===
+ */
+    // 0x01 Read Indexed TLB Entry
+    TLBR:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        
+    // 0x02 Write Indexed TLB Entry
+    TLBWI:
+        goto UNIMPLEMENTED_INSTRUCTION;
+        
+    // 0x06 Write Random TLB Entry
+    TLBWR:
+        cop0.updateRandom(cycleCounter);
+        goto UNIMPLEMENTED_INSTRUCTION;
+        
+    // 0x08 Probe TLB for Matching Entry
+    TLBP:
+        goto UNIMPLEMENTED_INSTRUCTION;
         
     // 0x18 Exception Return
     ERET:
@@ -2191,8 +2214,9 @@ dispatchStart:
     DERET:
         goto RESERVED_INSTRUCTION;
         //DISPATCH();
+        
 /*
- * === END COP0 ===
+ * === END COP0 CO ===
  */
     
     // Miscellaneous

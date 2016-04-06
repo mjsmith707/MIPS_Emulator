@@ -55,6 +55,9 @@ class COP0Register {
         // For unit testing
         uint32_t getResetValue();
 #endif
+        // Public nonlocking unsafe setter
+        void setValueUnsafe(uint32_t value, bool hwmode);
+    
         // Public setter
         void setValue(uint32_t value, bool hwmode);
     

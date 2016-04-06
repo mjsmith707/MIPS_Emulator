@@ -185,7 +185,7 @@ class PMMU {
             *half |= frame[vaddr+1];
         }
     
-        // Read an unaligned halfword (lwl, lwr)23e  cxerf a
+        // Read an unaligned halfword (lwl, lwr)
         inline static void readHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t* half, Coprocessor0* coproc) {
             translateVaddr(&vaddr1, coproc);
             translateVaddr(&vaddr2, coproc);

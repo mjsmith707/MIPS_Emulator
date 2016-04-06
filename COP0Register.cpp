@@ -111,6 +111,13 @@ void COP0Register::updateValue(uint32_t value, bool hwmode) {
     this->copregister = newvalue;
 }
 
+// Public nonlocking unsafe setter
+// Mainly for quickly incrementing counter registers like Random
+// which should only be accessed by the cpu thread anyway
+void COP0Register::setValueUnsafe(uint32_t value, bool hwmode) {
+    updateValue(value, hwmode);
+}
+
 // Sets the register to a value
 void COP0Register::setValue(uint32_t value, bool hwmode) {
     std::lock_guard<std::mutex> lockg(mute);
