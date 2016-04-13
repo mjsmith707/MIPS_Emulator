@@ -32,7 +32,7 @@ void MIPS_DI() {
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->setRegisterHW(CO0_STATUS, cop0->getRegister(CO0_STATUS) | STATUS_IE);
     uint32_t status = cop0->getRegister(CO0_STATUS);
-    memory->storeWord(0x00400000, 0x41686000, cpu0->getControlCoprocessor()); // di $t0
+    memory->storeWordPhys(0x00400000, 0x41686000); // di $t0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_STATUS) & STATUS_IE);
     ASSERT_EQUAL(status, cpu0->getRegister(8));
@@ -46,7 +46,7 @@ void MIPS_EI() {
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->setRegisterHW(CO0_STATUS, cop0->getRegister(CO0_STATUS) & ~(STATUS_IE));
     uint32_t status = cop0->getRegister(CO0_STATUS);
-    memory->storeWord(0x00400000, 0x41686020, cpu0->getControlCoprocessor()); // ei $t0
+    memory->storeWordPhys(0x00400000, 0x41686020); // ei $t0
     cpu0->stepCPU(1);
     ASSERT_LESS_THAN(0u, cop0->getRegister(CO0_STATUS) & STATUS_IE);
     ASSERT_EQUAL(status, cpu0->getRegister(8));
@@ -61,7 +61,7 @@ void MIPS_ERET() {
     cop0->setRegisterHW(CO0_STATUS, cop0->getRegister(CO0_STATUS) | STATUS_ERL);
     // Set ErrorEPC
     cop0->setRegisterHW(CO0_ERROREPC, 0xDEADBEE0);
-    memory->storeWord(0x00400000, 0x42000018, cpu0->getControlCoprocessor()); // eret
+    memory->storeWordPhys(0x00400000, 0x42000018); // eret
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xDEADBEE0u, cpu0->getPC());
     
@@ -73,7 +73,7 @@ void MIPS_ERET() {
     cop0->setRegisterHW(CO0_STATUS, cop0->getRegister(CO0_STATUS) & ~(STATUS_ERL));
     // Set EPC
     cop0->setRegisterHW(CO0_EPC, 0xDEADBEE0);
-    memory->storeWord(0x00400000, 0x42000018, cpu0->getControlCoprocessor()); // eret
+    memory->storeWordPhys(0x00400000, 0x42000018); // eret
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xDEADBEE0u, cpu0->getPC());
 }
@@ -86,7 +86,7 @@ void MIPS_MFC0() {
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     // Set ErrorEPC
     cop0->setRegisterHW(CO0_ERROREPC, 0xDEADBEEF);
-    memory->storeWord(0x00400000, 0x4008f000, cpu0->getControlCoprocessor()); // mfc0 $t0, c0_errorepc
+    memory->storeWordPhys(0x00400000, 0x4008f000); // mfc0 $t0, c0_errorepc
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xDEADBEEFu, cpu0->getRegister(8));
 }
@@ -99,7 +99,7 @@ void MIPS_MTC0() {
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     // Set ErrorEPC
     cop0->setRegisterHW(CO0_ERROREPC, 0);
-    memory->storeWord(0x00400000, 0x4088f000, cpu0->getControlCoprocessor()); // mtc0 $t0, c0_errorepc
+    memory->storeWordPhys(0x00400000, 0x4088f000); // mtc0 $t0, c0_errorepc
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xDEADBEEFu, cop0->getRegister(CO0_ERROREPC));
 }

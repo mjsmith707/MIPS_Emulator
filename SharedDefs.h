@@ -10,5 +10,6 @@
 #define SharedDefs_h
 
 #define TLBMAXENTRIES 64
+#define MAXCPUS 4
 
 #endif /* SharedDefs_h */

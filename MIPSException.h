@@ -9,7 +9,7 @@
 #ifndef MIPSException_h
 #define MIPSException_h
 
-#include "CPU.h"
+class CPU;  // Forward Reference
 
 // Base Exception Class
 class MIPSException {

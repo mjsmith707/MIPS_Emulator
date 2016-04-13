@@ -89,6 +89,9 @@ class CPU {
         // Control Coprocessor0
         Coprocessor0 cop0;
     
+        // CPU Number
+        const uint8_t CPUNUM;
+    
         // GPR Register Set
         uint32_t registers[32];
     
@@ -208,8 +211,8 @@ class CPU {
         std::string debugPrint();
     
     public:
-        CPU(ConsoleUI* conui, PMMU* memory);
-        CPU(PMMU* memory);
+        CPU(uint8_t cpuNum, ConsoleUI* conui, PMMU* memory);
+        CPU(uint8_t cpuNum, PMMU* memory);
     
         // Sets the program counter to an address
         void setPC(uint32_t addr);

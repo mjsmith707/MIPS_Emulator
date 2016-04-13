@@ -86,13 +86,13 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(ConsoleUI* conUI, PMMU* memory) : consoleUI(conUI), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
+CPU::CPU(uint8_t cpuNum, ConsoleUI* conUI, PMMU* memory) : CPUNUM(cpuNum), consoleUI(conUI), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
 
-CPU::CPU(PMMU* memory) : consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
+CPU::CPU(uint8_t cpuNum, PMMU* memory) : CPUNUM(cpuNum), consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }

@@ -42,7 +42,7 @@ int main(int argc, const char * argv[]) {
     ConsoleUI* consoleUI = new ConsoleUI(uart8250);
     
     // Create cpu
-    CPU* cpu0 = new CPU(consoleUI, memory);
+    CPU* cpu0 = new CPU(0, consoleUI, memory);
     
     // Load binary
     //loadRaw(consoleUI, argv[1], memory, cpu0);
@@ -92,7 +92,7 @@ void loadRaw(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu)
     
     uint32_t paddr = 0xbfc00000;
     for (size_t i=0; i<len; i++, paddr++) {
-        memory->storeByte(paddr, buff[i], cpu->getControlCoprocessor());
+        memory->storeBytePhys(paddr, buff[i]);
     }
     cpu->setPC(0xbfc00000);
 }
@@ -159,7 +159,7 @@ void loadFile(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu
             // Load segment into memory
             uint32_t addr = (uint32_t)pseg->get_virtual_address();
             for (uint32_t j=0; j < pseg->get_file_size(); j++, addr++) {
-                memory->storeByte(addr, p[j], cpu->getControlCoprocessor());
+                memory->storeBytePhys(addr, p[j]);
             }
         }
     }

@@ -29,5 +29,5 @@ void reset() {
     }
 
     memory = new PMMU(1000000);
-    cpu0 = new CPU(memory);
+    cpu0 = new CPU(0, memory);
 }

@@ -26,8 +26,8 @@ void MIPS_ROTR() {
     cpu0->setRegister(8, 0xdeadbeef);   // t0 = 0xdeadbeef
     cpu0->setRegister(9, 0);           // t1 = 0
     cpu0->setRegister(10, 0);           // t2 = 0
-    memory->storeWord(0x00400000, 0x00284802, cpu0->getControlCoprocessor());   // rotr $t1, $t0, 32
-    memory->storeWord(0x00400004, 0x00285202, cpu0->getControlCoprocessor());   // rotr $t2, $t0, 8
+    memory->storeWordPhys(0x00400000, 0x00284802);   // rotr $t1, $t0, 32
+    memory->storeWordPhys(0x00400004, 0x00285202);   // rotr $t2, $t0, 8
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(9));
     ASSERT_EQUAL(0xefdeadbeu, cpu0->getRegister(10));
@@ -41,8 +41,8 @@ void MIPS_ROTRV() {
     cpu0->setRegister(10, 8);           // t2 = 8
     cpu0->setRegister(11, 0);           // t3 = 0
     cpu0->setRegister(12, 0);           // t4 = 0
-    memory->storeWord(0x00400000, 0x01285846, cpu0->getControlCoprocessor());   // rotrv $t3, $t0, $t1   0xdeadbeef rotr 64
-    memory->storeWord(0x00400004, 0x01486046, cpu0->getControlCoprocessor());   // rotrv $t4, $t0, $t2   0xdeadbeef rotr 8
+    memory->storeWordPhys(0x00400000, 0x01285846);   // rotrv $t3, $t0, $t1   0xdeadbeef rotr 64
+    memory->storeWordPhys(0x00400004, 0x01486046);   // rotrv $t4, $t0, $t2   0xdeadbeef rotr 8
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(11));
     ASSERT_EQUAL(0xefdeadbeu, cpu0->getRegister(12));
@@ -54,8 +54,8 @@ void MIPS_SLL() {
     cpu0->setRegister(8, 0xdeadbeef);   // t0 = 0xdeadbeef
     cpu0->setRegister(9, 0);            // t1 = 0
     cpu0->setRegister(10, 0);           // t2 = 0
-    memory->storeWord(0x00400000, 0x00084fc0, cpu0->getControlCoprocessor());   // sll $t1, $t0, 31
-    memory->storeWord(0x00400004, 0x00085200, cpu0->getControlCoprocessor());   // sll $t2, $t0, 8
+    memory->storeWordPhys(0x00400000, 0x00084fc0);   // sll $t1, $t0, 31
+    memory->storeWordPhys(0x00400004, 0x00085200);   // sll $t2, $t0, 8
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x80000000u, cpu0->getRegister(9));
     ASSERT_EQUAL(0xadbeef00u, cpu0->getRegister(10));
@@ -69,8 +69,8 @@ void MIPS_SLLV() {
     cpu0->setRegister(10, 8);           // t2 = 8
     cpu0->setRegister(11, 0);           // t3 = 0
     cpu0->setRegister(12, 0);           // t4 = 0
-    memory->storeWord(0x00400000, 0x01285804, cpu0->getControlCoprocessor());   // sllv $t3, $t0, $t1
-    memory->storeWord(0x00400004, 0x01486004, cpu0->getControlCoprocessor());   // sllv $t4, $t0, $t2
+    memory->storeWordPhys(0x00400000, 0x01285804);   // sllv $t3, $t0, $t1
+    memory->storeWordPhys(0x00400004, 0x01486004);   // sllv $t4, $t0, $t2
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x80000000u, cpu0->getRegister(11));
     ASSERT_EQUAL(0xadbeef00u, cpu0->getRegister(12));
@@ -82,8 +82,8 @@ void MIPS_SRA() {
     cpu0->setRegister(8, 0xdeadbeef);   // t0 = 0xdeadbeef
     cpu0->setRegister(9, 0);            // t1 = 0
     cpu0->setRegister(10, 0);           // t2 = 0
-    memory->storeWord(0x00400000, 0x00084fc3, cpu0->getControlCoprocessor());   // sra $t1, $t0, 31
-    memory->storeWord(0x00400004, 0x00085203, cpu0->getControlCoprocessor());   // sra $t2, $t0, 8
+    memory->storeWordPhys(0x00400000, 0x00084fc3);   // sra $t1, $t0, 31
+    memory->storeWordPhys(0x00400004, 0x00085203);   // sra $t2, $t0, 8
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0xffffffffu, cpu0->getRegister(9));
     ASSERT_EQUAL(0xffdeadbeu, cpu0->getRegister(10));
@@ -97,8 +97,8 @@ void MIPS_SRAV() {
     cpu0->setRegister(10, 8);           // t2 = 8
     cpu0->setRegister(11, 0);           // t3 = 0
     cpu0->setRegister(12, 0);           // t4 = 0
-    memory->storeWord(0x00400000, 0x01285807, cpu0->getControlCoprocessor());   // srav $t3, $t0, $t1
-    memory->storeWord(0x00400004, 0x01486007, cpu0->getControlCoprocessor());   // srav $t4, $t0, $t2
+    memory->storeWordPhys(0x00400000, 0x01285807);   // srav $t3, $t0, $t1
+    memory->storeWordPhys(0x00400004, 0x01486007);   // srav $t4, $t0, $t2
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0xffffffff, cpu0->getRegister(11));
     ASSERT_EQUAL(0xffdeadbeu, cpu0->getRegister(12));
@@ -110,8 +110,8 @@ void MIPS_SRL() {
     cpu0->setRegister(8, 0xdeadbeef);   // t0 = 0xdeadbeef
     cpu0->setRegister(9, 0);            // t1 = 0
     cpu0->setRegister(10, 0);           // t2 = 0
-    memory->storeWord(0x00400000, 0x00084fc2, cpu0->getControlCoprocessor());   // srl $t1, $t0, 31
-    memory->storeWord(0x00400004, 0x00085202, cpu0->getControlCoprocessor());   // srl $t2, $t0, 8
+    memory->storeWordPhys(0x00400000, 0x00084fc2);   // srl $t1, $t0, 31
+    memory->storeWordPhys(0x00400004, 0x00085202);   // srl $t2, $t0, 8
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x00000001u, cpu0->getRegister(9));
     ASSERT_EQUAL(0x00deadbeu, cpu0->getRegister(10));
@@ -125,8 +125,8 @@ void MIPS_SRLV() {
     cpu0->setRegister(10, 8);           // t2 = 8
     cpu0->setRegister(11, 0);           // t3 = 0
     cpu0->setRegister(12, 0);           // t4 = 0
-    memory->storeWord(0x00400000, 0x01285806, cpu0->getControlCoprocessor());   // srav $t3, $t0, $t1
-    memory->storeWord(0x00400004, 0x01486006, cpu0->getControlCoprocessor());   // srav $t4, $t0, $t2
+    memory->storeWordPhys(0x00400000, 0x01285806);   // srav $t3, $t0, $t1
+    memory->storeWordPhys(0x00400004, 0x01486006);   // srav $t4, $t0, $t2
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x00000001u, cpu0->getRegister(11));
     ASSERT_EQUAL(0x00deadbeu, cpu0->getRegister(12));

@@ -27,7 +27,7 @@ void MIPS_MFHI() {
     cpu0->setPC(0x00400000);
     cpu0->setHI(0xdeadbeef);
     cpu0->setRegister(8, 0x0);
-    memory->storeWord(0x00400000, 0x00004010, cpu0->getControlCoprocessor());   // mfhi $t0
+    memory->storeWordPhys(0x00400000, 0x00004010);   // mfhi $t0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(8));
 }
@@ -37,7 +37,7 @@ void MIPS_MFLO() {
     cpu0->setPC(0x00400000);
     cpu0->setLO(0xdeadbeef);
     cpu0->setRegister(8, 0x0);
-    memory->storeWord(0x00400000, 0x00004012, cpu0->getControlCoprocessor());   // mflo $t0
+    memory->storeWordPhys(0x00400000, 0x00004012);   // mflo $t0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(8));
 }
@@ -54,8 +54,8 @@ void MIPS_MOVN() {
     cpu0->setRegister(10, 0x0);         // t2 = 0
     cpu0->setRegister(11, 0x0);         // t3 = 0
     cpu0->setRegister(12, 0x0);         // t4 = 0
-    memory->storeWord(0x00400000, 0x0109580b, cpu0->getControlCoprocessor());   // movn $t3, $t0, $t1   true
-    memory->storeWord(0x00400004, 0x010a600b, cpu0->getControlCoprocessor());   // movn $t4, $t0, $t2   false
+    memory->storeWordPhys(0x00400000, 0x0109580b);   // movn $t3, $t0, $t1   true
+    memory->storeWordPhys(0x00400004, 0x010a600b);   // movn $t4, $t0, $t2   false
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(11));
     ASSERT_EQUAL(0x00000000u, cpu0->getRegister(12));
@@ -73,8 +73,8 @@ void MIPS_MOVZ() {
     cpu0->setRegister(10, 0x0);         // t2 = 0
     cpu0->setRegister(11, 0x0);         // t3 = 0
     cpu0->setRegister(12, 0x0);         // t4 = 0
-    memory->storeWord(0x00400000, 0x0109580a, cpu0->getControlCoprocessor());   // movn $t3, $t0, $t1   false
-    memory->storeWord(0x00400004, 0x010a600a, cpu0->getControlCoprocessor());   // movn $t4, $t0, $t2   true
+    memory->storeWordPhys(0x00400000, 0x0109580a);   // movn $t3, $t0, $t1   false
+    memory->storeWordPhys(0x00400004, 0x010a600a);   // movn $t4, $t0, $t2   true
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x00000000u, cpu0->getRegister(11));
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(12));
@@ -85,7 +85,7 @@ void MIPS_MTHI() {
     cpu0->setPC(0x00400000);
     cpu0->setHI(0x00000000);
     cpu0->setRegister(8, 0xdeadbeef);   // t0 = 0xdeadbeef
-    memory->storeWord(0x00400000, 0x01000011, cpu0->getControlCoprocessor());   // mthi $t0
+    memory->storeWordPhys(0x00400000, 0x01000011);   // mthi $t0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getHI());
 }
@@ -95,7 +95,7 @@ void MIPS_MTLO() {
     cpu0->setPC(0x00400000);
     cpu0->setLO(0x00000000);
     cpu0->setRegister(8, 0xdeadbeef);   // t0 = 0xdeadbeef
-    memory->storeWord(0x00400000, 0x01000013, cpu0->getControlCoprocessor());   // mtlo $t0
+    memory->storeWordPhys(0x00400000, 0x01000013);   // mtlo $t0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getLO());
 }

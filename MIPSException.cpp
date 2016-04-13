@@ -7,6 +7,7 @@
 //
 
 #include "MIPSException.h"
+#include "CPU.h"
 
 // General Exception Processing (pg 88 vol 3)
 void MIPSException::generalException(CPU* cpu, ExceptionType etype, ExceptionCode ecode) {
