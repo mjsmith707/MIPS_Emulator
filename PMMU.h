@@ -509,7 +509,7 @@ class PMMU {
         */
     
         // TLBP
-        // Probes the TLB for a matching entry and updates cop0essor0 Index
+        // Probes the TLB for a matching entry and updates CO0_Index Register
         // with the result of the search.
         inline static void probeTLB(uint8_t cpuNum, Coprocessor0* cop0) {
             // Set Index bit 31 to 1
@@ -529,7 +529,7 @@ class PMMU {
         }
     
         // TLBR
-        // Reads the TLB entry specified by CO0_INDEX
+        // Reads the TLB entry specified by CO0_Index Register
         inline static void readTLB(uint8_t cpuNum, Coprocessor0* cop0) {
             // Check ring level
             if (!cop0->inKernelMode()) {
@@ -561,6 +561,7 @@ class PMMU {
         }
     
         // TLBWI
+        // Writes a TLB entry to the value of CO0_Index Register
         inline static void writeIndexedTLB(uint8_t cpuNum, Coprocessor0* cop0) {
             // Check ring level
             if (!cop0->inKernelMode()) {
@@ -589,6 +590,7 @@ class PMMU {
         }
     
         // TLBWR
+        // Writes a TLB entry to the value of CO0_Random Register
         inline static void writeRandomTLB(uint8_t cpuNum, Coprocessor0* cop0) {
             // Check ring level
             if (!cop0->inKernelMode()) {

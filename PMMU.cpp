@@ -37,3 +37,4 @@ uint8_t* PMMU::frameTable[frameTableMax];
 uint32_t PMMU::mmioAddressTable[MMIOADDRESSTABLEMAX];
 uint32_t PMMU::mmioAddressTableSize;
 MMIO_Device* PMMU::mmioDeviceTable[MMIOADDRESSTABLEMAX];
+PMMU::TLBEntry_t PMMU::TLBTable[MAXCPUS][TLBMAXENTRIES];
