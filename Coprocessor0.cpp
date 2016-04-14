@@ -9,7 +9,10 @@
 #include "Coprocessor0.h"
 #include "CPU.h"
 
-Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr), lastCycleCount(0) {
+Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) {
+    // Seed RNG
+    srand(time(NULL));
+    
     // Initialize Registers
     // Too easy to just have normal registers
     // we have to deal with the sel field...
@@ -444,11 +447,8 @@ uint32_t Coprocessor0::getRegisterSW(uint8_t regnum, uint8_t sel) {
     }
     // Special Behavior for Random Register
     if ((regnum == 1) && (sel == 0)) {
-        // Since we don't have the cycle counter
-        // fudge it from the last one, that should
-        // be good enough
-        lastCycleCount *= lastCycleCount+1;
-        updateRandom(lastCycleCount);
+        // Update the random register before accessing
+        updateRandom();
     }
     return registerFile[regnum][sel]->getValue();
 }
@@ -477,11 +477,8 @@ void Coprocessor0::setRegisterSW(uint8_t regnum, uint8_t sel, uint32_t value) {
     }
     // Special Behavior for Random Register
     else if ((regnum == 1) && (sel == 0)) {
-        // Since we don't have the cycle counter
-        // fudge it from the last one, that should
-        // be good enough
-        lastCycleCount *= lastCycleCount+1;
-        updateRandom(lastCycleCount);
+        // Update the random register before accessing
+        updateRandom();
     }
     registerFile[regnum][sel]->setValue(value, false);
 }
@@ -568,19 +565,14 @@ void Coprocessor0::stopCounter() {
 }
 
 // Called by CPU or Coprocessor to update Random Register
-// This is done every time the Random register is accessed.
-// It is a decrement counter per cycle to achieve
-// so-called 'randomization' for TLB page replacement.
-// This only needs to be updated any time the Random register
-// is accessed, rather than in the hot loop.
-void Coprocessor0::updateRandom(uint64_t cycleCounter) {
-    uint32_t random = registerFile[1][0]->getValue();
+// On real hardware this is a count-down wraparound counter
+// that is updated after every instruction.
+// We don't need such accuracy though.
+void Coprocessor0::updateRandom() {
     uint32_t wired = registerFile[6][0]->getValue();
     
-    random -= cycleCounter;
-    random %= TLBMAXENTRIES-1 - wired;
-    random += wired;
+    // Generate random value between wired and TLBMAXENTRIES-1
+    uint32_t random = rand() % (TLBMAXENTRIES-1 - wired) + wired;
     
     registerFile[1][0]->setValue(random, true);
-    lastCycleCount = cycleCounter;
 }

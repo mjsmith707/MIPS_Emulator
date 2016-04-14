@@ -40,10 +40,18 @@ class PMMU {
     
         // TLB entry
         typedef struct TLBEntry_t {
-            uint32_t EntryHi;
-            uint32_t PageMask;
-            uint32_t EntryLo0;
-            uint32_t EntryLo1;
+            uint32_t Mask;
+            uint32_t VPN2;
+            uint8_t ASID;
+            bool G;
+            uint32_t PFN0;
+            uint8_t C0;
+            bool D0;
+            bool V0;
+            uint32_t PFN1;
+            uint8_t C1;
+            bool D1;
+            bool V1;
         } TLBEntry_t;
     
         // Per CPU TLB entry table
@@ -54,12 +62,12 @@ class PMMU {
     
         // Virtual to Physical Address translation for data access
         // Also checks address space permissions (i.e. kernel address space accessed from usermode)
-        inline static void translateVaddrData(uint32_t* vaddr, Coprocessor0* coproc) {
+        inline static void translateVaddrData(uint32_t* vaddr, Coprocessor0* cop0) {
             // KSEG3
             if (((*vaddr) & 0xE0000000) == 0xE0000000) {
                 // Kernel Mapped
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
                 return;
@@ -70,7 +78,7 @@ class PMMU {
                 // TODO: Supervisor mode is optional and unimplemented
                 // so this segment is (correctly) treated as kernel space
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
                 return;
@@ -79,7 +87,7 @@ class PMMU {
             else if (((*vaddr) & 0xA0000000) == 0xA0000000) {
                 // Kernel Unmapped Uncached
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
                 return;
@@ -88,7 +96,7 @@ class PMMU {
             else if (((*vaddr) & 0x80000000) == 0x80000000) {
                 // Kernel Unmapped
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
                 return;
@@ -101,12 +109,12 @@ class PMMU {
     
         // Virtual to Physical Address translation for instruction fetch
         // Also checks address space permissions (i.e. kernel address space accessed from usermode)
-        inline static void translateVaddrIF(uint32_t* vaddr, Coprocessor0* coproc) {
+        inline static void translateVaddrIF(uint32_t* vaddr, Coprocessor0* cop0) {
             // KSEG3
             if (((*vaddr) & 0xE0000000) == 0xE0000000) {
                 // Kernel Mapped
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
                 return;
@@ -117,7 +125,7 @@ class PMMU {
                 // TODO: Supervisor mode is optional and unimplemented
                 // so this segment is (correctly) treated as kernel space
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
                 return;
@@ -126,7 +134,7 @@ class PMMU {
             else if (((*vaddr) & 0xA0000000) == 0xA0000000) {
                 // Kernel Unmapped Uncached
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
                 return;
@@ -135,7 +143,7 @@ class PMMU {
             else if (((*vaddr) & 0x80000000) == 0x80000000) {
                 // Kernel Unmapped
                 // Check ring level
-                if (!coproc->inKernelMode()) {
+                if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
                 return;
@@ -261,8 +269,8 @@ class PMMU {
     
         // Memory reading
         // Read a byte
-        inline static void readByte(uint32_t vaddr, uint8_t* byte, Coprocessor0* coproc) {
-            translateVaddrData(&vaddr, coproc);
+        inline static void readByte(uint32_t vaddr, uint8_t* byte, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr, cop0);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -281,9 +289,9 @@ class PMMU {
         }
     
         // Read a halfword
-        inline static void readHalf(uint32_t vaddr, uint16_t* half, Coprocessor0* coproc) {
+        inline static void readHalf(uint32_t vaddr, uint16_t* half, Coprocessor0* cop0) {
             checkHalfAlignmentData(vaddr);
-            translateVaddrData(&vaddr, coproc);
+            translateVaddrData(&vaddr, cop0);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -306,9 +314,9 @@ class PMMU {
         }
     
         // Read an unaligned halfword (lwl, lwr)
-        inline static void readHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t* half, Coprocessor0* coproc) {
-            translateVaddrData(&vaddr1, coproc);
-            translateVaddrData(&vaddr2, coproc);
+        inline static void readHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t* half, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr1, cop0);
+            translateVaddrData(&vaddr2, cop0);
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
@@ -350,9 +358,9 @@ class PMMU {
         }
     
         // Read a word
-        inline static void readWord(uint32_t vaddr, uint32_t* word, Coprocessor0* coproc) {
+        inline static void readWord(uint32_t vaddr, uint32_t* word, Coprocessor0* cop0) {
             checkWordAlignmentData(vaddr);
-            translateVaddrData(&vaddr, coproc);
+            translateVaddrData(&vaddr, cop0);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -384,8 +392,8 @@ class PMMU {
         
         // Memory writing
         // Store a byte
-        inline static void storeByte(uint32_t vaddr, uint8_t value, Coprocessor0* coproc) {
-            translateVaddrData(&vaddr, coproc);
+        inline static void storeByte(uint32_t vaddr, uint8_t value, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr, cop0);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -404,9 +412,9 @@ class PMMU {
         }
     
         // Store a halfword
-        inline static void storeHalf(uint32_t vaddr, uint16_t value, Coprocessor0* coproc) {
+        inline static void storeHalf(uint32_t vaddr, uint16_t value, Coprocessor0* cop0) {
             checkHalfAlignmentData(vaddr);
-            translateVaddrData(&vaddr, coproc);
+            translateVaddrData(&vaddr, cop0);
                 // Check if MMIO device holds address
                 for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                     if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -427,9 +435,9 @@ class PMMU {
         }
     
         // Store an unaligned halfword (swl, swr)
-        inline static void storeHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t value, Coprocessor0* coproc) {
-            translateVaddrData(&vaddr1, coproc);
-            translateVaddrData(&vaddr2, coproc);
+        inline static void storeHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t value, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr1, cop0);
+            translateVaddrData(&vaddr2, cop0);
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
@@ -469,9 +477,9 @@ class PMMU {
         }
     
         // Store a word
-        inline static void storeWord(uint32_t vaddr, uint32_t value, Coprocessor0* coproc) {
+        inline static void storeWord(uint32_t vaddr, uint32_t value, Coprocessor0* cop0) {
             checkWordAlignmentData(vaddr);
-            translateVaddrData(&vaddr, coproc);
+            translateVaddrData(&vaddr, cop0);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -493,6 +501,116 @@ class PMMU {
             frame[vaddr+1] = value >> 16;
             frame[vaddr+2] = value >> 8;
             frame[vaddr+3] = value;
+        }
+    
+       /*
+        *   TLB Instructions
+        *
+        */
+    
+        // TLBP
+        // Probes the TLB for a matching entry and updates cop0essor0 Index
+        // with the result of the search.
+        inline static void probeTLB(uint8_t cpuNum, Coprocessor0* cop0) {
+            // Set Index bit 31 to 1
+            cop0->setRegisterHW(CO0_INDEX, 0x1u << 31);
+            
+            for (uint8_t i=0; i<TLBMAXENTRIES; i++) {
+                // There has to be a way to simplify this...
+                // Pg 268 vol 3
+                if (((TLBTable[cpuNum][i].VPN2 & ~TLBTable[cpuNum][i].Mask) == (cop0->getRegister(CO0_ENTRYHI) & ~TLBTable[cpuNum][i].Mask))
+                    && (TLBTable[cpuNum][i].G || (TLBTable[cpuNum][i].ASID == (cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID)))) {
+                    
+                    // Update CO0_Index
+                    cop0->setRegisterHW(CO0_INDEX, i);
+                    break;
+                }
+            }
+        }
+    
+        // TLBR
+        // Reads the TLB entry specified by CO0_INDEX
+        inline static void readTLB(uint8_t cpuNum, Coprocessor0* cop0) {
+            // Check ring level
+            if (!cop0->inKernelMode()) {
+                throw CoprocessorUnusableException(CoprocessorUnusableException::FaultingCoprocessor::CO0);
+            }
+            
+            uint8_t i = cop0->getRegister(CO0_INDEX);
+            if (i >= TLBMAXENTRIES) {
+                // Undefined
+                return;
+            }
+            
+            // Update PageMask
+            cop0->andRegisterHW(CO0_PAGEMASK, ~PAGEMASK_MASK);
+            cop0->orRegisterHW(CO0_PAGEMASK, TLBTable[cpuNum][i].Mask);
+            
+            // Update EntryHi
+            cop0->setRegisterHW(CO0_ENTRYHI, (TLBTable[cpuNum][i].VPN2 & ~TLBTable[cpuNum][i].Mask) | TLBTable[cpuNum][i].ASID);
+            
+            // Update EntryLo1
+            cop0->setRegisterHW(CO0_ENTRYLO1, (TLBTable[cpuNum][i].PFN1 & ~TLBTable[cpuNum][i].Mask)
+                                  | (TLBTable[cpuNum][i].C1 << 3) | (TLBTable[cpuNum][i].D1 << 2) | (TLBTable[cpuNum][i].V1 << 1)
+                                  | (TLBTable[cpuNum][i].G));
+            
+            // Update EntryLo0
+            cop0->setRegisterHW(CO0_ENTRYLO0, (TLBTable[cpuNum][i].PFN0 & ~TLBTable[cpuNum][i].Mask)
+                                  | (TLBTable[cpuNum][i].C0 << 3) | (TLBTable[cpuNum][i].D0 << 2) | (TLBTable[cpuNum][i].V0 << 1)
+                                  | (TLBTable[cpuNum][i].G));
+        }
+    
+        // TLBWI
+        inline static void writeIndexedTLB(uint8_t cpuNum, Coprocessor0* cop0) {
+            // Check ring level
+            if (!cop0->inKernelMode()) {
+                throw CoprocessorUnusableException(CoprocessorUnusableException::FaultingCoprocessor::CO0);
+            }
+            
+            uint8_t i = cop0->getRegister(CO0_INDEX);
+            if (i >= TLBMAXENTRIES) {
+                // Undefined
+                return;
+            }
+            
+            // Insert TLB Entries
+            TLBTable[cpuNum][i].Mask = cop0->getRegister(CO0_PAGEMASK) & PAGEMASK_MASK;
+            TLBTable[cpuNum][i].VPN2 = cop0->getRegister(CO0_ENTRYHI) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].ASID = cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID;
+            TLBTable[cpuNum][i].G = ((cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_G) > 0) && ((cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_G) > 0);
+            TLBTable[cpuNum][i].PFN1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_PFN) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].C1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_C);
+            TLBTable[cpuNum][i].D1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_D) > 0;
+            TLBTable[cpuNum][i].V1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_V) > 0;
+            TLBTable[cpuNum][i].PFN0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_PFN) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].C0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_C);
+            TLBTable[cpuNum][i].D0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_D) > 0;
+            TLBTable[cpuNum][i].V0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_V) > 0;
+        }
+    
+        // TLBWR
+        inline static void writeRandomTLB(uint8_t cpuNum, Coprocessor0* cop0) {
+            // Check ring level
+            if (!cop0->inKernelMode()) {
+                throw CoprocessorUnusableException(CoprocessorUnusableException::FaultingCoprocessor::CO0);
+            }
+            
+            // Get random index
+            uint8_t i = cop0->getRegister(CO0_RANDOM);
+            
+            // Insert TLB Entries
+            TLBTable[cpuNum][i].Mask = cop0->getRegister(CO0_PAGEMASK) & PAGEMASK_MASK;
+            TLBTable[cpuNum][i].VPN2 = cop0->getRegister(CO0_ENTRYHI) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].ASID = cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID;
+            TLBTable[cpuNum][i].G = ((cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_G) > 0) && ((cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_G) > 0);
+            TLBTable[cpuNum][i].PFN1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_PFN) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].C1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_C);
+            TLBTable[cpuNum][i].D1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_D) > 0;
+            TLBTable[cpuNum][i].V1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_V) > 0;
+            TLBTable[cpuNum][i].PFN0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_PFN) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].C0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_C);
+            TLBTable[cpuNum][i].D0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_D) > 0;
+            TLBTable[cpuNum][i].V0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_V) > 0;
         }
     
        /*
@@ -661,7 +779,7 @@ class PMMU {
         }
         
         // Store an unaligned halfword (swl, swr)
-        inline static void storeHalfUnalignedPhys(uint32_t paddr1, uint32_t paddr2, uint16_t value, Coprocessor0* coproc) {
+        inline static void storeHalfUnalignedPhys(uint32_t paddr1, uint32_t paddr2, uint16_t value, Coprocessor0* cop0) {
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;

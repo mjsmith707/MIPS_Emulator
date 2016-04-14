@@ -2170,20 +2170,23 @@ dispatchStart:
  */
     // 0x01 Read Indexed TLB Entry
     TLBR:
-        goto UNIMPLEMENTED_INSTRUCTION;
+        memory->readTLB(CPUNUM, &cop0);
+        DISPATCH();
         
     // 0x02 Write Indexed TLB Entry
     TLBWI:
-        goto UNIMPLEMENTED_INSTRUCTION;
+        memory->writeIndexedTLB(CPUNUM, &cop0);
+        DISPATCH();
         
     // 0x06 Write Random TLB Entry
     TLBWR:
-        cop0.updateRandom(cycleCounter);
-        goto UNIMPLEMENTED_INSTRUCTION;
+        memory->writeRandomTLB(CPUNUM, &cop0);
+        DISPATCH();
         
     // 0x08 Probe TLB for Matching Entry
     TLBP:
-        goto UNIMPLEMENTED_INSTRUCTION;
+        memory->probeTLB(CPUNUM, &cop0);
+        DISPATCH();
         
     // 0x18 Exception Return
     ERET:

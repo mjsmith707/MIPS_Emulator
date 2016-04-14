@@ -11,9 +11,11 @@
 
 #include "SharedDefs.h"
 #include "COP0Register.h"
-#include <thread>
-#include <atomic>
-#include <mutex>
+#include <thread>   // For std::thread
+#include <atomic>   // For std::atomic
+#include <mutex>    // For std::mutex
+#include <cstdlib>  // For rand()
+#include <ctime>    // For time()
 
 // Register Name Macros (number,sel)
 #define CO0_INDEX       0,0
@@ -238,9 +240,6 @@ class Coprocessor0 {
         // Count Compare Thread
         std::thread* countCompThread;
     
-        // Previous Cycle Counter for Random register
-        uint64_t lastCycleCount;
-    
         // Private thread count/compare loop
         void countCompare(CPU* cpu);
     
@@ -285,7 +284,7 @@ class Coprocessor0 {
         void stopCounter();
     
         // Called by CPU to update Random Register
-        void updateRandom(uint64_t);
+        void updateRandom();
 };
 
 #endif /* Coprocessor0_h */
