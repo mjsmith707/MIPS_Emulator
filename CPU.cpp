@@ -435,7 +435,7 @@ std::string CPU::debugPrint() {
         PC = branchAddr; \
     } \
 \
-    memory->readWordIF(PC, &IR); \
+    memory->readWordIF(PC, &IR, CPUNUM, &cop0); \
     PC += 4; \
 \
     if (branchDelay) { \
@@ -1127,7 +1127,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readByte(tempi32, &tempu8, &cop0);
+        memory->readByte(tempi32, &tempu8, CPUNUM, &cop0);
         tempi32 = tempu8;
         tempi32 <<= 24;
         tempi32 >>= 24;
@@ -1141,7 +1141,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readHalf(tempi32, &tempu16, &cop0);
+        memory->readHalf(tempi32, &tempu16, CPUNUM, &cop0);
         tempi32 = tempu16;
         tempi32 <<= 16;
         tempi32 >>= 16;
@@ -1154,7 +1154,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->readHalfUnaligned(tempi32, tempi32+1, &tempu16, &cop0);
+        memory->readHalfUnaligned(tempi32, tempi32+1, &tempu16, CPUNUM, &cop0);
         tempu32 = tempu16 << 16;
         registers[rt] &= 0x0000FFFF;
         registers[rt] |= tempu32;
@@ -1167,7 +1167,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readWord(tempi32, &tempu32, &cop0);
+        memory->readWord(tempi32, &tempu32, CPUNUM, &cop0);
         tempi32 = tempu32;
         registers[rt] = tempi32;
         DISPATCH();
@@ -1179,7 +1179,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readByte(tempi32, &tempu8, &cop0);
+        memory->readByte(tempi32, &tempu8, CPUNUM, &cop0);
         registers[rt] = tempu8;
         DISPATCH();
     
@@ -1190,7 +1190,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readHalf(tempi32, &tempu16, &cop0);
+        memory->readHalf(tempi32, &tempu16, CPUNUM, &cop0);
         registers[rt] = tempu16;
         DISPATCH();
     
@@ -1200,7 +1200,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->readHalfUnaligned(tempi32-1, tempi32, &tempu16, &cop0);
+        memory->readHalfUnaligned(tempi32-1, tempi32, &tempu16, CPUNUM, &cop0);
         tempu32 = tempu16;
         registers[rt] &= 0xFFFF0000;
         registers[rt] |= tempu32;
@@ -1215,7 +1215,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeByte(tempi32, registers[rt], &cop0);
+        memory->storeByte(tempi32, registers[rt], CPUNUM,&cop0);
         DISPATCH();
     
     // 0x29 Store Halfword
@@ -1225,7 +1225,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeHalf(tempi32, registers[rt], &cop0);
+        memory->storeHalf(tempi32, registers[rt], CPUNUM, &cop0);
         DISPATCH();
     
     // 0x2A Store Word Left
@@ -1234,7 +1234,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->storeHalfUnaligned(tempi32, tempi32+1, (registers[rt] & 0xFFFF0000) >> 16, &cop0);
+        memory->storeHalfUnaligned(tempi32, tempi32+1, (registers[rt] & 0xFFFF0000) >> 16, CPUNUM, &cop0);
         DISPATCH();
     
     // 0x2B Store Word
@@ -1244,7 +1244,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeWord(tempi32, registers[rt], &cop0);
+        memory->storeWord(tempi32, registers[rt], CPUNUM, &cop0);
         DISPATCH();
     
     // 0x2C
@@ -1257,7 +1257,7 @@ dispatchStart:
         DECODE_RT();
         DECODE_IMMSE();
         tempi32 = registers[rs] + immse;
-        memory->storeHalfUnaligned(tempi32-1, tempi32, registers[rt] & 0x0000FFFF, &cop0);
+        memory->storeHalfUnaligned(tempi32-1, tempi32, registers[rt] & 0x0000FFFF, CPUNUM, &cop0);
         DISPATCH();
     
     // 0x2F Cache
@@ -1272,7 +1272,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readWord(tempi32, &tempu32, &cop0);
+        memory->readWord(tempi32, &tempu32, CPUNUM, &cop0);
         tempi32 = tempu32;
         registers[rt] = tempi32;
         LLBit = true;
@@ -1315,7 +1315,7 @@ dispatchStart:
         tempi32 = immse;
         tempi32 += registers[rs];
         if (LLBit) {
-            memory->storeWord(tempi32, registers[rt], &cop0);
+            memory->storeWord(tempi32, registers[rt], CPUNUM, &cop0);
         }
         registers[rt] = LLBit == true ? 1 : 0;
         DISPATCH();
