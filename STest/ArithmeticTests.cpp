@@ -39,15 +39,16 @@ void add_arithmetic_tests() {
 // TODO: Add overflow tests
 void MIPS_ADD() {
     reset();
-    cpu0->setPC(0x00000000);
-    memory->storeWordPhys(0x00000000, 0x200200c8);   //  addi	v0,zero,200
-    memory->storeWordPhys(0x00000004, 0x200301f4);   //  addi	v1,zero,500
-    memory->storeWordPhys(0x00000008, 0x2004ff38);   //  addi	a0,zero,-200
-    memory->storeWordPhys(0x0000000C, 0x2005fe0c);   //  addi	a1,zero,-500
-    memory->storeWordPhys(0x00000010, 0x00436020);   //  add	t4,v0,v1
-    memory->storeWordPhys(0x00000014, 0x00456820);   //  add	t5,v0,a1
-    memory->storeWordPhys(0x00000018, 0x00837020);   //  add	t6,a0,v1
-    memory->storeWordPhys(0x0000001C, 0x00857820);   //  add	t7,a0,a1
+    // 0xA0000000
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0x200200c8);   //  addi	v0,zero,200
+    memory->storeWordPhys(0xA0000004, 0x200301f4);   //  addi	v1,zero,500
+    memory->storeWordPhys(0xA0000008, 0x2004ff38);   //  addi	a0,zero,-200
+    memory->storeWordPhys(0xA000000C, 0x2005fe0c);   //  addi	a1,zero,-500
+    memory->storeWordPhys(0xA0000010, 0x00436020);   //  add	t4,v0,v1
+    memory->storeWordPhys(0xA0000014, 0x00456820);   //  add	t5,v0,a1
+    memory->storeWordPhys(0xA0000018, 0x00837020);   //  add	t6,a0,v1
+    memory->storeWordPhys(0xA000001C, 0x00857820);   //  add	t7,a0,a1
     cpu0->stepCPU(8);
     ASSERT_EQUAL(700u, cpu0->getRegister(12));
     ASSERT_EQUAL(-300, (int32_t)cpu0->getRegister(13));

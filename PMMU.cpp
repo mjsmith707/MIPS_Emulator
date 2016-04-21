@@ -17,6 +17,14 @@ PMMU::PMMU(size_t ramSize) {
     }
     frameTableSize = 0;
     mmioAddressTableSize = 0;
+    // Init TLB
+    for (size_t i=0; i<MAXCPUS; i++) {
+        for (size_t j=0; j<TLBMAXENTRIES; j++) {
+            TLBTable[i][j].V1 = false;
+            TLBTable[i][j].V0 = false;
+        }
+    }
+
 }
 
 // Destructor
@@ -26,6 +34,13 @@ PMMU::~PMMU() {
     for (size_t i=0; i<frameTableMax; i++) {
         if (frameTable[i] != NULL) {
             delete[] frameTable[i];
+        }
+    }
+    // Invalid all TLB entries
+    for (size_t i=0; i<MAXCPUS; i++) {
+        for (size_t j=0; j<TLBMAXENTRIES; j++) {
+            TLBTable[i][j].V1 = false;
+            TLBTable[i][j].V0 = false;
         }
     }
 }

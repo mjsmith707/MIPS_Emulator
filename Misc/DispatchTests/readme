@@ -1,0 +1,15 @@
+- Simple virtual machine with 5 instructions and Dispatching written 4 different
+ways (computed goto, switch, function table, object polymorphism).
+
+- Timing intervals at 1,5,10,30 and 60 seconds.
+- Hardcoded program does a loop from 0 to 99, adding 1 to a variable
+	each time, branching as necessary. Then divides the number by 2,
+	and subtracts 1. Repeating the program until the elapsed time
+	interval finishes.
+
+- Compiling instructions:
+	- Add #define GOTO for computed goto testing
+	- Add #define SWITCH for switch-based testing
+	- Add #define FUNC for function table testing
+	- Add #define POLY for polymorphic testing
+	- E.x. g++ -std=c++11 -O2 -DGOTO -lpthread main.cpp -o dispatch.x
