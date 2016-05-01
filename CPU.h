@@ -80,6 +80,9 @@ class CPU {
             #define DISPATCH() updateISARep() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
         #endif
     
+        // CPU Number
+        const uint8_t CPUNUM;
+    
         // Pointer to ConsoleUI for stdout debugging
         ConsoleUI* consoleUI;
     
@@ -88,9 +91,6 @@ class CPU {
     
         // Control Coprocessor0
         Coprocessor0 cop0;
-    
-        // CPU Number
-        const uint8_t CPUNUM;
     
         // GPR Register Set
         uint32_t registers[32];

@@ -119,52 +119,54 @@ void MIPS_BNE() {
 
 void MIPS_J() {
     reset();
-    cpu0->setPC(0xA0000000);
-    memory->storeWordPhys(0xA0000000, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000004, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000008, 0x00000000);   // nop
-    memory->storeWordPhys(0xA000000C, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000010, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000014, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000018, 0x00000000);   // nop
-    memory->storeWordPhys(0xA000001C, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000020, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000024, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000028, 0x08000000);   // j	0xA0000000
-    memory->storeWordPhys(0xA000002C, 0x00000000);   // nop
+    cpu0->setPC(0xA0400000);
+    memory->storeWordPhys(0xA0400000, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400004, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400008, 0x00000000);   // nop
+    memory->storeWordPhys(0xA040000c, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400010, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400014, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400018, 0x00000000);   // nop
+    memory->storeWordPhys(0xA040001c, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400020, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400024, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400028, 0x08100000);   // j	0xA0400000
+    memory->storeWordPhys(0xA040002c, 0x00000000);   // nop
     cpu0->stepCPU(13);
-    ASSERT_EQUAL(0xA0000000u, cpu0->getPC()-4);
+    ASSERT_EQUAL(0xA0400000u, cpu0->getPC()-4);
 }
 
 void MIPS_JAL() {
     reset();
-    cpu0->setPC(0xA0000000);
-    memory->storeWordPhys(0xA0000000, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000004, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000008, 0x00000000);   // nop
-    memory->storeWordPhys(0xA000000C, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000010, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000014, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000018, 0x00000000);   // nop
-    memory->storeWordPhys(0xA000001C, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000020, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000024, 0x00000000);   // nop
-    memory->storeWordPhys(0xA0000028, 0x0c000000);   // jal	0xA0000000
-    memory->storeWordPhys(0xA000002C, 0x00000000);   // nop
+    cpu0->setPC(0xA0400000);
+    memory->storeWordPhys(0xA0400000, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400004, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400008, 0x00000000);   // nop
+    memory->storeWordPhys(0xA040000c, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400010, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400014, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400018, 0x00000000);   // nop
+    memory->storeWordPhys(0xA040001c, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400020, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400024, 0x00000000);   // nop
+    memory->storeWordPhys(0xA0400028, 0x0c100000);   // jal	0xA0400000
+    memory->storeWordPhys(0xA040002c, 0x00000000);   // nop
     cpu0->stepCPU(13);
-    ASSERT_EQUAL(0xA0000000u, cpu0->getPC()-4);
-    ASSERT_EQUAL(0xA0000030u, cpu0->getRegister(31));
+    ASSERT_EQUAL(0xA0400000u, cpu0->getPC()-4);
+    ASSERT_EQUAL(0xA0400030u, cpu0->getRegister(31));
 }
 
 void MIPS_JALR() {
     reset();
     cpu0->setPC(0xA0000000);
-    cpu0->setRegister(4, 0xA0000000);
-    memory->storeWordPhys(0xA0000000, 0x0080f809);   // jalr	a0
-    memory->storeWordPhys(0xA0000004, 0x00000000);   // nop
-    cpu0->stepCPU(3);
+    memory->storeWordPhys(0xA0000000, 0x2002ffcb);   // addi	v0,zero,-53
+    memory->storeWordPhys(0xA0000004, 0x3c01A000);   // lui	at,0xA000
+    memory->storeWordPhys(0xA0000008, 0x34240000);   // ori	a0,at,0x0000
+    memory->storeWordPhys(0xA000000c, 0x0080f809);   // jalr	a0
+    memory->storeWordPhys(0xA0000010, 0x00000000);   // nop
+    cpu0->stepCPU(6);
     ASSERT_EQUAL(0xA0000000u, cpu0->getPC()-4);
-    ASSERT_EQUAL(0xA0000008u, cpu0->getRegister(31));
+    ASSERT_EQUAL(0xA0000014u, cpu0->getRegister(31));
 }
 
 void MIPS_JALR_HB() {
@@ -178,10 +180,12 @@ void MIPS_JALX() {
 void MIPS_JR() {
     reset();
     cpu0->setPC(0xA0000000);
-    cpu0->setRegister(4, 0xA0000000);
-    memory->storeWordPhys(0xA0000000, 0x00800008);   // jr	a0
-    memory->storeWordPhys(0xA0000004, 0x00000000);   // nop
-    cpu0->stepCPU(3);
+    memory->storeWordPhys(0xA0000000, 0x2002ffcb);   // addi	v0,zero,-53
+    memory->storeWordPhys(0xA0000004, 0x3c01A000);   // lui	at,0xA000
+    memory->storeWordPhys(0xA0000008, 0x34240000);   // ori	a0,at,0x0000
+    memory->storeWordPhys(0xA000000c, 0x00800008);   // jr	a0
+    memory->storeWordPhys(0xA0000010, 0x00000000);   // nop
+    cpu0->stepCPU(6);
     ASSERT_EQUAL(0xA0000000u, cpu0->getPC()-4);
 }
 

@@ -100,7 +100,7 @@ void Cold_Reset_Exception() {
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_SRSMAP));
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_CAUSE) & CAUSE_DC);
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_EBASE) & EBASE_EBASE);
-    ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG0), cop0->getRegister(CO0_CONFIG0));
+    ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG0) | 0x2u, cop0->getRegister(CO0_CONFIG0));
     ASSERT_EQUAL(0x2u, cop0->getRegister(CO0_CONFIG0) & CONFIG0_K0);
     ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG1), cop0->getRegister(CO0_CONFIG1));
     ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG2), cop0->getRegister(CO0_CONFIG2));
@@ -603,7 +603,7 @@ void General_Exception_Processing() {
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x0du, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_EPC));               // EPC == address of instruction-4
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction-4
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_CE);        // Cause_ce == 0
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_BD);    // Cause_bd == 1
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_STATUS) & STATUS_EXL); // Status_exl == 1

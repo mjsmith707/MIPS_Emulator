@@ -39,7 +39,6 @@ void add_arithmetic_tests() {
 // TODO: Add overflow tests
 void MIPS_ADD() {
     reset();
-    // 0xA0000000
     cpu0->setPC(0xA0000000);
     memory->storeWordPhys(0xA0000000, 0x200200c8);   //  addi	v0,zero,200
     memory->storeWordPhys(0xA0000004, 0x200301f4);   //  addi	v1,zero,500

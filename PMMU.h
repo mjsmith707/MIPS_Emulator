@@ -62,7 +62,7 @@ class PMMU {
     
         // Virtual to Physical Address translation for data access
         // Also checks address space permissions (i.e. kernel address space accessed from usermode)
-        inline static void translateVaddrData(uint32_t* vaddr, uint8_t cpuNum, Coprocessor0* cop0, bool store) {
+        inline static void translateVaddrData(uint32_t* vaddr, uint8_t cpunum, Coprocessor0* cop0, bool store) {
             // KSEG3
             if (((*vaddr) & 0xE0000000) == 0xE0000000) {
                 // Kernel Mapped
@@ -70,7 +70,8 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
-                translateVaddr(vaddr, cpuNum, cop0, true, store);
+                // Do TLB Translation
+                translateVaddr(vaddr, cpunum, cop0, true, store);
                 return;
             }
             // KSSEG
@@ -82,7 +83,8 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
-                translateVaddr(vaddr, cpuNum, cop0, true, store);
+                // Do TLB Translation
+                translateVaddr(vaddr, cpunum, cop0, true, store);
                 return;
             }
             // KSEG1
@@ -92,6 +94,7 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
+                // Remap to 0
                 *vaddr -= 0xA0000000;
                 return;
             }
@@ -102,19 +105,21 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
+                // Remap to 0
                 *vaddr -= 0x80000000;
                 return;
             }
             // USEG
             else {
-                translateVaddr(vaddr, cpuNum, cop0, true, store);
+                // Do TLB Translation
+                translateVaddr(vaddr, cpunum, cop0, true, store);
                 return;
             }
         }
     
         // Virtual to Physical Address translation for instruction fetch
         // Also checks address space permissions (i.e. kernel address space accessed from usermode)
-        inline static void translateVaddrIF(uint32_t* vaddr, uint8_t cpuNum, Coprocessor0* cop0) {
+        inline static void translateVaddrIF(uint32_t* vaddr, uint8_t cpunum, Coprocessor0* cop0) {
             // KSEG3
             if (((*vaddr) & 0xE0000000) == 0xE0000000) {
                 // Kernel Mapped
@@ -122,7 +127,8 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
-                translateVaddr(vaddr, cpuNum, cop0, false, false);
+                // Do TLB Translation
+                translateVaddr(vaddr, cpunum, cop0, false, false);
                 return;
             }
             // KSSEG
@@ -134,7 +140,8 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
-                translateVaddr(vaddr, cpuNum, cop0, false, false);
+                // Do TLB Translation
+                translateVaddr(vaddr, cpunum, cop0, false, false);
                 return;
             }
             // KSEG1
@@ -144,6 +151,7 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
+                // Remap to 0
                 *vaddr -= 0xA0000000;
                 return;
             }
@@ -154,33 +162,44 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
+                // Remap to 0
                 *vaddr -= 0x80000000;
                 return;
             }
             // USEG
             else {
-                translateVaddr(vaddr, cpuNum, cop0, false, false);
+                // Do TLB Translation
+                translateVaddr(vaddr, cpunum, cop0, false, false);
                 return;
             }
         }
     
-        // Address space translation for physical access (i.e. writing 0xA... programs into 0x0 physical).
+        // Does segment remapping for phys accessors, specifically A0 and 80 address
+        // spaces which are mapped to the low 512mb region starting at 0.
         inline static void translateVaddrPhys(uint32_t* vaddr) {
             // KSEG3
             if (((*vaddr) & 0xE0000000) == 0xE0000000) {
+                // Kernel Mapped
                 return;
             }
             // KSSEG
             else if (((*vaddr) & 0xC0000000) == 0xC0000000) {
+                // Supervisor Mapped
+                // TODO: Supervisor mode is optional and unimplemented
+                // so this segment is (correctly) treated as kernel space
                 return;
             }
             // KSEG1
             else if (((*vaddr) & 0xA0000000) == 0xA0000000) {
+                // Kernel Unmapped Uncached
+                // Remap to 0
                 *vaddr -= 0xA0000000;
                 return;
             }
             // KSEG0
             else if (((*vaddr) & 0x80000000) == 0x80000000) {
+                // Kernel Unmapped
+                // Remap to 0
                 *vaddr -= 0x80000000;
                 return;
             }
@@ -192,6 +211,7 @@ class PMMU {
     
         // Does TLB search and translation for 4k pages (pg 39, vol3)
         // data bool indicates whether this is instruction fetch or data access
+        // store bool indicates whether this was a store or load
         inline static void translateVaddr(uint32_t* vaddr, uint8_t cpuNum, Coprocessor0* cop0, bool data, bool store) {
             bool found = false;
             for (uint8_t i=0; i<TLBMAXENTRIES; i++) {
@@ -203,8 +223,8 @@ class PMMU {
                     uint32_t PAMaskHigh;    // These masks are engineered based on a 32bit physical address space
                     uint32_t PAMaskLow;     // They are used to merge the physical frame and virtual address.
                     switch (TLBTable[cpuNum][i].Mask) {
-                        // This probably needs more work, not to mention
-                        // Pagemask probably needs to be locked at 4KB anyway
+                            // This probably needs more work, not to mention
+                            // Pagemask probably needs to be locked at 4KB anyway
                         case 0x0000: EvenOddBit = 12; PAMaskHigh = 0xFFFFF000; PAMaskLow = 0x00000FFF; break;    // 4KB page
                         case 0x0003: EvenOddBit = 14; PAMaskHigh = 0xFFFFC000; PAMaskLow = 0x00003FFF; break;    // 16KB page
                         case 0x000C: EvenOddBit = 16; PAMaskHigh = 0xFFFF0000; PAMaskLow = 0x0000FFFF; break;    // 64KB page
@@ -274,7 +294,7 @@ class PMMU {
             paddr = (paddr&0xFFFFF000) >> 12;
             uint8_t* frame = frameTable[paddr];
             
-            if (frame == NULL) {
+            if (frame == nullptr) {
                 // Check if out of memory
                 if (frameTableSize == frameTableRamLimit) {
                     // Probably fatal for the VM
@@ -370,9 +390,9 @@ class PMMU {
          */
     
         // Experimental fast instruction fetch
-        inline static void readWordIF(uint32_t vaddr, uint32_t* word, uint8_t cpuNum, Coprocessor0* cop0) {
+        inline static void readWordIF(uint32_t vaddr, uint32_t* word, uint8_t cpunum, Coprocessor0* cop0) {
             checkWordAlignmentIF(vaddr);
-            translateVaddrIF(&vaddr, cpuNum, cop0);
+            translateVaddrIF(&vaddr, cpunum, cop0);
             uint32_t* frame = (uint32_t*)getFramePointer(vaddr);
             vaddr &= 0x00000FFF;
             frame += vaddr >> 2;
@@ -382,8 +402,8 @@ class PMMU {
     
         // Memory reading
         // Read a byte
-        inline static void readByte(uint32_t vaddr, uint8_t* byte, uint8_t cpuNum, Coprocessor0* cop0) {
-            translateVaddrData(&vaddr, cpuNum, cop0, false);
+        inline static void readByte(uint32_t vaddr, uint8_t* byte, uint8_t cpunum, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr, cpunum, cop0, false);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -402,9 +422,9 @@ class PMMU {
         }
     
         // Read a halfword
-        inline static void readHalf(uint32_t vaddr, uint16_t* half, uint8_t cpuNum, Coprocessor0* cop0) {
+        inline static void readHalf(uint32_t vaddr, uint16_t* half, uint8_t cpunum, Coprocessor0* cop0) {
             checkHalfAlignmentData(vaddr);
-            translateVaddrData(&vaddr, cpuNum, cop0, false);
+            translateVaddrData(&vaddr, cpunum, cop0, false);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -427,9 +447,9 @@ class PMMU {
         }
     
         // Read an unaligned halfword (lwl, lwr)
-        inline static void readHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t* half, uint8_t cpuNum, Coprocessor0* cop0) {
-            translateVaddrData(&vaddr1, cpuNum, cop0, false);
-            translateVaddrData(&vaddr2, cpuNum, cop0, false);
+        inline static void readHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t* half, uint8_t cpunum, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr1, cpunum, cop0, false);
+            translateVaddrData(&vaddr2, cpunum, cop0, false);
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
@@ -471,9 +491,9 @@ class PMMU {
         }
     
         // Read a word
-        inline static void readWord(uint32_t vaddr, uint32_t* word, uint8_t cpuNum, Coprocessor0* cop0) {
+        inline static void readWord(uint32_t vaddr, uint32_t* word, uint8_t cpunum, Coprocessor0* cop0) {
             checkWordAlignmentData(vaddr);
-            translateVaddrData(&vaddr, cpuNum, cop0, false);
+            translateVaddrData(&vaddr, cpunum, cop0, false);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -505,8 +525,8 @@ class PMMU {
         
         // Memory writing
         // Store a byte
-        inline static void storeByte(uint32_t vaddr, uint8_t value, uint8_t cpuNum, Coprocessor0* cop0) {
-            translateVaddrData(&vaddr, cpuNum, cop0, true);
+        inline static void storeByte(uint32_t vaddr, uint8_t value, uint8_t cpunum, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr, cpunum, cop0, true);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -525,9 +545,9 @@ class PMMU {
         }
     
         // Store a halfword
-        inline static void storeHalf(uint32_t vaddr, uint16_t value, uint8_t cpuNum, Coprocessor0* cop0) {
+        inline static void storeHalf(uint32_t vaddr, uint16_t value, uint8_t cpunum, Coprocessor0* cop0) {
             checkHalfAlignmentData(vaddr);
-            translateVaddrData(&vaddr, cpuNum, cop0, true);
+            translateVaddrData(&vaddr, cpunum, cop0, true);
                 // Check if MMIO device holds address
                 for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                     if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
@@ -548,9 +568,9 @@ class PMMU {
         }
     
         // Store an unaligned halfword (swl, swr)
-        inline static void storeHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t value, uint8_t cpuNum, Coprocessor0* cop0) {
-            translateVaddrData(&vaddr1, cpuNum, cop0, true);
-            translateVaddrData(&vaddr2, cpuNum, cop0, true);
+        inline static void storeHalfUnaligned(uint32_t vaddr1, uint32_t vaddr2, uint16_t value, uint8_t cpunum, Coprocessor0* cop0) {
+            translateVaddrData(&vaddr1, cpunum, cop0, true);
+            translateVaddrData(&vaddr2, cpunum, cop0, true);
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
@@ -590,9 +610,9 @@ class PMMU {
         }
     
         // Store a word
-        inline static void storeWord(uint32_t vaddr, uint32_t value, uint8_t cpuNum, Coprocessor0* cop0) {
+        inline static void storeWord(uint32_t vaddr, uint32_t value, uint8_t cpunum, Coprocessor0* cop0) {
             checkWordAlignmentData(vaddr);
-            translateVaddrData(&vaddr, cpuNum, cop0, true);
+            translateVaddrData(&vaddr, cpunum, cop0, true);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {

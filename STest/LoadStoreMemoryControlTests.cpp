@@ -36,7 +36,7 @@ void MIPS_LB() {
     memory->storeWordPhys(0xA0000000, 0x00004021);   // move $t0, $zero
     memory->storeWordPhys(0xA0000004, 0x00004821);   // move $t1, $zero
     memory->storeWordPhys(0xA0000008, 0x2108ffcb);   // addi $t0, -53
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp, -32
     memory->storeWordPhys(0xA0000010, 0xa3a80004);   // sb $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x83a90004);   // lb $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -57,7 +57,7 @@ void MIPS_LBU() {
     memory->storeWordPhys(0xA0000000, 0x00004021);   // move $t0, $zero
     memory->storeWordPhys(0xA0000004, 0x00004821);   // move $t1, $zero
     memory->storeWordPhys(0xA0000008, 0x2108ffcb);   // addi $t0, -53
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp, -32
     memory->storeWordPhys(0xA0000010, 0xa3a80004);   // sb $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x93a90004);   // lbu $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -78,7 +78,7 @@ void MIPS_LH() {
     memory->storeWordPhys(0xA0000000, 0x3c010000);   // lui $at, 0x0
     memory->storeWordPhys(0xA0000004, 0x3421dead);   // ori $at, $at, 0xdead
     memory->storeWordPhys(0xA0000008, 0x00014020);   // add $t0, $zero, $at
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp $sp, -32
     memory->storeWordPhys(0xA0000010, 0xa7a80004);   // sh $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x87a90004);   // lh $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -99,7 +99,7 @@ void MIPS_LHU() {
     memory->storeWordPhys(0xA0000000, 0x3c010000);   // lui $at, 0x0
     memory->storeWordPhys(0xA0000004, 0x3421dead);   // ori $at, $at, 0xdead
     memory->storeWordPhys(0xA0000008, 0x00014020);   // add $t0, $zero, $at
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp $sp, -32
     memory->storeWordPhys(0xA0000010, 0xa7a80004);   // sh $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x97a90004);   // lhu $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -126,7 +126,7 @@ void MIPS_LW() {
     memory->storeWordPhys(0xA0000000, 0x3c01dead);   // lui $at, 0xdead
     memory->storeWordPhys(0xA0000004, 0x3421beef);   // ori $at, $at, 0xbeef
     memory->storeWordPhys(0xA0000008, 0x00014020);   // add $t0, $zero, $at
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp $sp, -32
     memory->storeWordPhys(0xA0000010, 0xafa80004);   // sw $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x8fa90004);   // lw $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -147,7 +147,7 @@ void MIPS_LWL() {
     memory->storeWordPhys(0xA0000000, 0x3c08dead);   // lui $t0, 0xdead
     memory->storeWordPhys(0xA0000004, 0x3508beef);   // ori $t0, $t0, 0xbeef
     memory->storeWordPhys(0xA0000008, 0x23bdffe0);   // addi $sp, $sp, -32
-    memory->storeWordPhys(0xA000000C, 0xafa80004);   // sw $t0, 4($sp)
+    memory->storeWordPhys(0xA000000c, 0xafa80004);   // sw $t0, 4($sp)
     memory->storeWordPhys(0xA0000010, 0x8ba90004);   // lwl $t1, 4($sp)
     cpu0->stepCPU(5);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(8));
@@ -170,7 +170,7 @@ void MIPS_LWR() {
     memory->storeWordPhys(0xA0000000, 0x3c08dead);   // lui $t0, 0xdead
     memory->storeWordPhys(0xA0000004, 0x3508beef);   // ori $t0, $t0, 0xbeef
     memory->storeWordPhys(0xA0000008, 0x23bdffe0);   // addi $sp, $sp, -32
-    memory->storeWordPhys(0xA000000C, 0xafa80004);   // sw $t0, 4($sp)
+    memory->storeWordPhys(0xA000000c, 0xafa80004);   // sw $t0, 4($sp)
     memory->storeWordPhys(0xA0000010, 0x9ba90004);   // lwr $t1, 4($sp)
     cpu0->stepCPU(5);
     ASSERT_EQUAL(0xdeadbeefu, cpu0->getRegister(8));
@@ -194,7 +194,7 @@ void MIPS_SB() {
     memory->storeWordPhys(0xA0000000, 0x00004021);   // move $t0, $zero
     memory->storeWordPhys(0xA0000004, 0x00004821);   // move $t1, $zero
     memory->storeWordPhys(0xA0000008, 0x2108ffcb);   // addi $t0, -53
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp, -32
     memory->storeWordPhys(0xA0000010, 0xa3a80004);   // sb $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x83a90004);   // lb $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -221,7 +221,7 @@ void MIPS_SH() {
     memory->storeWordPhys(0xA0000000, 0x3c010000);   // lui $at, 0x0
     memory->storeWordPhys(0xA0000004, 0x3421dead);   // ori $at, $at, 0xdead
     memory->storeWordPhys(0xA0000008, 0x00014020);   // add $t0, $zero, $at
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp $sp, -32
     memory->storeWordPhys(0xA0000010, 0xa7a80004);   // sh $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x87a90004);   // lh $t1, 4($sp)
     cpu0->stepCPU(6);
@@ -244,7 +244,7 @@ void MIPS_SW() {
     memory->storeWordPhys(0xA0000000, 0x3c01dead);   // lui $at, 0xdead
     memory->storeWordPhys(0xA0000004, 0x3421beef);   // ori $at, $at, 0xbeef
     memory->storeWordPhys(0xA0000008, 0x00014020);   // add $t0, $zero, $at
-    memory->storeWordPhys(0xA000000C, 0x23bdffe0);   // addi $sp $sp, -32
+    memory->storeWordPhys(0xA000000c, 0x23bdffe0);   // addi $sp $sp, -32
     memory->storeWordPhys(0xA0000010, 0xafa80004);   // sw $t0, 4($sp)
     memory->storeWordPhys(0xA0000014, 0x8fa90004);   // lw $t1, 4($sp)
     cpu0->stepCPU(6);

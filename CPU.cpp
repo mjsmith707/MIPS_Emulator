@@ -1215,7 +1215,7 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->storeByte(tempi32, registers[rt], CPUNUM,&cop0);
+        memory->storeByte(tempi32, registers[rt], CPUNUM, &cop0);
         DISPATCH();
     
     // 0x29 Store Halfword

@@ -191,7 +191,7 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     // AR = 001 (Revision 2+)
     // MT = 001 (Standard TLB)
     // VI = 0 (Not Virtual ICache)
-    // K0 = 010 (Uncached - Recommended) FIXME: Field marked R/W - Uncached/Cacheable required
+    // K0 = 010 (Uncached) Recommended 2 (Uncached) 3 (Cached) allowed
     // reset: 10000000000000001000010010000011
     // mask1: 10000000000000001111111110001111
     // mask2: 00000000000000000000000000000111
@@ -542,12 +542,6 @@ void Coprocessor0::countCompare(CPU* cpu) {
 
 // Starts Count/Compare counter
 void Coprocessor0::startCounter(CPU* cpu) {
-    // This shouldn't run for unit testing (unless to unit test itself..)
-    // as it can cause erratic behavior.
-    #ifdef TEST_PROJECT
-        return;
-    #endif
-    
     if (cpu == nullptr) {
         throw std::runtime_error("Got nullptr in cop0::startCounter");
     }

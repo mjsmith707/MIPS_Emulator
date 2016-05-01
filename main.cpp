@@ -20,6 +20,7 @@
 
 void loadRaw(ConsoleUI*, const char*, PMMU*, CPU*);
 void loadFile(ConsoleUI*, const char*, PMMU*, CPU*);
+void waitForInput(UART8250* uart);
 
 int main(int argc, const char * argv[]) {
     if (argc != 2) {
