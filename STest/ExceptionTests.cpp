@@ -75,8 +75,8 @@ void add_exception_tests() {
 
 void Cold_Reset_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000000); // throw ColdResetException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000000); // throw ColdResetException();
     cpu0->stepCPU(1);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     // FIXME: test Random = TLBEntries - 1
@@ -100,21 +100,21 @@ void Cold_Reset_Exception() {
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_SRSMAP));
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_CAUSE) & CAUSE_DC);
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_EBASE) & EBASE_EBASE);
-    ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG0) | 0x2u, cop0->getRegister(CO0_CONFIG0));
+    ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG0), cop0->getRegister(CO0_CONFIG0));
     ASSERT_EQUAL(0x2u, cop0->getRegister(CO0_CONFIG0) & CONFIG0_K0);
     ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG1), cop0->getRegister(CO0_CONFIG1));
     ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG2), cop0->getRegister(CO0_CONFIG2));
     ASSERT_EQUAL(cop0->getRegisterReset(CO0_CONFIG3), cop0->getRegister(CO0_CONFIG3));
     // FIXME: WatchLo stuff not implemented
     // FIXME: PerfCnt stuff not implemented
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_ERROREPC));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ERROREPC));
     ASSERT_EQUAL(0xbfc00000u, cpu0->getPC());
 }
 
 void Soft_Reset_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000001); // throw SoftResetException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000001); // throw SoftResetException();
     cpu0->stepCPU(1);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_PAGEMASK) & PAGEMASK_MASKX);
@@ -129,14 +129,14 @@ void Soft_Reset_Exception() {
     ASSERT_LESS_THAN(0u, cop0->getRegister(CO0_STATUS) & STATUS_ERL);
     // FIXME: WatchLo stuff not implemented
     // FIXME: PerfCnt stuff not implemented
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_ERROREPC));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ERROREPC));
     ASSERT_EQUAL(0xbfc00000u, cpu0->getPC());
 }
 
 void Nonmaskable_Interrupt_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000002); // throw NonmaskableInterruptException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000002); // throw NonmaskableInterruptException();
     cpu0->stepCPU(1);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     ASSERT_LESS_THAN(0u, cop0->getRegister(CO0_STATUS) & STATUS_BEV);
@@ -144,14 +144,14 @@ void Nonmaskable_Interrupt_Exception() {
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_STATUS) & STATUS_SR);
     ASSERT_LESS_THAN(0u, cop0->getRegister(CO0_STATUS) & STATUS_NMI);
     ASSERT_LESS_THAN(0u, cop0->getRegister(CO0_STATUS) & STATUS_ERL);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_ERROREPC));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ERROREPC));
     ASSERT_EQUAL(0xbfc00000u, cpu0->getPC());
 }
 
 void Machine_Check_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000003); // throw MachineCheckException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000003); // throw MachineCheckException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -159,8 +159,8 @@ void Machine_Check_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000003); // throw MachineCheckException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000003); // throw MachineCheckException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -171,8 +171,8 @@ void Machine_Check_Exception() {
 // Watch is optional and not implemented so this test is hardly thorough
 void Watch_IF_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000004); // throw WatchIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000004); // throw WatchIFException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -180,8 +180,8 @@ void Watch_IF_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000004); // throw WatchIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000004); // throw WatchIFException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -191,23 +191,23 @@ void Watch_IF_Exception() {
 
 void Address_Error_IF_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000005); // throw AddressErrorIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000005); // throw AddressErrorIFException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x04u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000005); // throw AddressErrorIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000005); // throw AddressErrorIFException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x04u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
     ASSERT_EQUAL(0xbfc00380u, cpu0->getPC());
 }
 
@@ -225,8 +225,8 @@ void TLB_Execute_Inhibit_Exception() {
 
 void Cache_Error_IF_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000009); // throw CacheErrorIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000009); // throw CacheErrorIFException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -235,8 +235,8 @@ void Cache_Error_IF_Exception() {
     // NOTE: CacheErr Register and codes are optional and implementation dependent
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000009); // throw CacheErrorIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000009); // throw CacheErrorIFException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
     cpu0->stepCPU(1);
@@ -247,8 +247,8 @@ void Cache_Error_IF_Exception() {
 
 void Bus_Error_IF_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000a); // throw BusErrorIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000a); // throw BusErrorIFException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -256,8 +256,8 @@ void Bus_Error_IF_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000a); // throw BusErrorIFException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000a); // throw BusErrorIFException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -267,8 +267,8 @@ void Bus_Error_IF_Exception() {
 
 void Coprocessor_Unusable_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000b); // throw CoprocessorUnusableException(2);
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000b); // throw CoprocessorUnusableException(2);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -277,8 +277,8 @@ void Coprocessor_Unusable_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000b); // throw CoprocessorUnusableException(2);
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000b); // throw CoprocessorUnusableException(2);
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -289,8 +289,8 @@ void Coprocessor_Unusable_Exception() {
 
 void Reserved_Instruction_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000c); // throw ReservedInstructionException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000c); // throw ReservedInstructionException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -298,8 +298,8 @@ void Reserved_Instruction_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000c); // throw ReservedInstructionException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000c); // throw ReservedInstructionException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -309,8 +309,8 @@ void Reserved_Instruction_Exception() {
 
 void Integer_Overflow_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000d); // throw IntegerOverflowException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000d); // throw IntegerOverflowException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -318,8 +318,8 @@ void Integer_Overflow_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000d); // throw IntegerOverflowException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000d); // throw IntegerOverflowException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -329,8 +329,8 @@ void Integer_Overflow_Exception() {
 
 void Trap_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000e); // throw TrapException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -338,8 +338,8 @@ void Trap_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000e); // throw TrapException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -349,8 +349,8 @@ void Trap_Exception() {
 
 void System_Call_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000f); // throw SystemCallException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000f); // throw SystemCallException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -358,8 +358,8 @@ void System_Call_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000f); // throw SystemCallException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000f); // throw SystemCallException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -369,8 +369,8 @@ void System_Call_Exception() {
 
 void Breakpoint_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000010); // throw BreakpointException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000010); // throw BreakpointException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -378,8 +378,8 @@ void Breakpoint_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000010); // throw BreakpointException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000010); // throw BreakpointException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -393,8 +393,8 @@ void Floating_Point_Exception() {
 
 void Coprocessor2_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000012); // throw Coprocessor2Exception();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000012); // throw Coprocessor2Exception();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -402,8 +402,8 @@ void Coprocessor2_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000012); // throw Coprocessor2Exception();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000012); // throw Coprocessor2Exception();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -414,8 +414,8 @@ void Coprocessor2_Exception() {
 // Watch is optional and not implemented so this test is hardly thorough
 void Watch_Data_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000013); // throw WatchDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000013); // throw WatchDataException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -423,8 +423,8 @@ void Watch_Data_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000013); // throw WatchDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000013); // throw WatchDataException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -434,23 +434,23 @@ void Watch_Data_Exception() {
 
 void Address_Error_Data_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000014); // throw AddressErrorDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000014); // throw AddressErrorDataException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x05u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000014); // throw AddressErrorDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000014); // throw AddressErrorDataException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x05u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
     ASSERT_EQUAL(0xbfc00380u, cpu0->getPC());
 }
 
@@ -472,8 +472,8 @@ void TLB_Modified_Exception() {
 
 void Cache_Error_Data_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000019); // throw CacheErrorDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000019); // throw CacheErrorDataException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -482,8 +482,8 @@ void Cache_Error_Data_Exception() {
     // NOTE: CacheErr Register and codes are optional and implementation dependent
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc000019); // throw CacheErrorDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000019); // throw CacheErrorDataException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
     cpu0->stepCPU(1);
@@ -494,8 +494,8 @@ void Cache_Error_Data_Exception() {
 
 void Bus_Error_Data_Exception() {
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00001a); // throw BusErrorDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00001a); // throw BusErrorDataException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cpu0->stepCPU(1);
@@ -503,8 +503,8 @@ void Bus_Error_Data_Exception() {
     ASSERT_EQUAL(0x80000180u, cpu0->getPC());
     
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00001a); // throw BusErrorDataException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00001a); // throw BusErrorDataException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);   // Status_bev = 1
     cpu0->stepCPU(1);
@@ -517,7 +517,7 @@ void Interrupt_Exception() {
     // Status_bev, Status_exl, Cause_iv, EJTAG_probtrap
     // 0,0,0,x
     reset();
-    cpu0->setPC(0x00400000);
+    cpu0->setPC(0xA0000000);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_IE);      // Status_ie = 1
     cop0->orRegisterHW(CO0_STATUS, STATUS_IM7);     // Status_im7 = 1
@@ -532,7 +532,7 @@ void Interrupt_Exception() {
     
     // 0,0,1,x
     reset();
-    cpu0->setPC(0x00400000);
+    cpu0->setPC(0xA0000000);
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_IE);      // Status_ie = 1
     cop0->orRegisterHW(CO0_STATUS, STATUS_IM7);     // Status_im7 = 1
@@ -547,7 +547,7 @@ void Interrupt_Exception() {
     
     // 1,0,0,x
     reset();
-    cpu0->setPC(0x00400000);
+    cpu0->setPC(0xA0000000);
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_IE);      // Status_ie = 1
     cop0->orRegisterHW(CO0_STATUS, STATUS_IM7);     // Status_im7 = 1
@@ -562,7 +562,7 @@ void Interrupt_Exception() {
     
     // 1,0,1,x
     reset();
-    cpu0->setPC(0x00400000);
+    cpu0->setPC(0xA0000000);
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_IE);      // Status_ie = 1
     cop0->orRegisterHW(CO0_STATUS, STATUS_IM7);     // Status_im7 = 1
@@ -580,14 +580,14 @@ void Interrupt_Exception() {
 void General_Exception_Processing() {
     // Test for exl = 0, bev = 0, not in branch delay,
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000e); // throw TrapException();
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x0du, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_CE);        // Cause_ce == 0
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_BD);        // Cause_bd == 0
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_STATUS) & STATUS_EXL); // Status_exl == 1
@@ -595,15 +595,15 @@ void General_Exception_Processing() {
     
     // Test for exl = 0, bev = 0, in branch delay,
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0x0eadbee0); // unconditional j 0x2ADBEE0
-    memory->storeWordPhys(0x00400004, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0x0eadbee0); // unconditional j 0x2ADBEE0
+    memory->storeWordPhys(0xA0000004, 0xfc00000e); // throw TrapException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x0du, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction-4
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_EPC));               // EPC == address of instruction-4
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_CE);        // Cause_ce == 0
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_BD);    // Cause_bd == 1
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_STATUS) & STATUS_EXL); // Status_exl == 1
@@ -611,14 +611,14 @@ void General_Exception_Processing() {
     
     // Test for exl = 0, bev = 1, not in branch delay,
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc00000e); // throw TrapException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
     cpu0->stepCPU(1);
     ASSERT_EQUAL(0x0du, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction-4
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction-4
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_CE);        // Cause_ce == 0
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_BD);        // Cause_bd == 0
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_STATUS) & STATUS_EXL); // Status_exl == 1
@@ -626,15 +626,15 @@ void General_Exception_Processing() {
     
     // Test for exl = 0, bev = 1, in branch delay,
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0x0eadbee0); // unconditional j 0x2ADBEE0
-    memory->storeWordPhys(0x00400004, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0x0eadbee0); // unconditional j 0x2ADBEE0
+    memory->storeWordPhys(0xA0000004, 0xfc00000e); // throw TrapException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
     cpu0->stepCPU(2);
     ASSERT_EQUAL(0x0du, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
-    ASSERT_EQUAL(0x00400000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction-4
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_EPC));              // EPC == address of instruction-4
     ASSERT_EQUAL(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_CE);        // Cause_ce == 0
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_CAUSE) & CAUSE_BD);    // Cause_bd == 1
     ASSERT_LESS_THAN(0x0u, cop0->getRegister(CO0_STATUS) & STATUS_EXL); // Status_exl == 1
@@ -642,9 +642,9 @@ void General_Exception_Processing() {
     
     // Test for exl = 1, bev = 0, in branch delay,
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0x0eadbee0); // unconditional j 0x2ADBEE0
-    memory->storeWordPhys(0x00400004, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0x0eadbee0); // unconditional j 0x2ADBEE0
+    memory->storeWordPhys(0xA0000004, 0xfc00000e); // throw TrapException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
     cop0->orRegisterHW(CO0_STATUS, STATUS_EXL);     // Status_exl = 0
@@ -658,9 +658,9 @@ void General_Exception_Processing() {
     
     // Test for exl = 1, bev = 1, in branch delay,
     reset();
-    cpu0->setPC(0x00400000);
-    memory->storeWordPhys(0x00400000, 0x0eadbee0); // unconditional j 0x2ADBEE0
-    memory->storeWordPhys(0x00400004, 0xfc00000e); // throw TrapException();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0x0eadbee0); // unconditional j 0x2ADBEE0
+    memory->storeWordPhys(0xA0000004, 0xfc00000e); // throw TrapException();
     cop0 = cpu0->getControlCoprocessor();
     cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
     cop0->orRegisterHW(CO0_STATUS, STATUS_EXL);     // Status_exl = 0

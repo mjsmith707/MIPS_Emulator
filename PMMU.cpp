@@ -34,6 +34,7 @@ PMMU::~PMMU() {
     for (size_t i=0; i<frameTableMax; i++) {
         if (frameTable[i] != NULL) {
             delete[] frameTable[i];
+            frameTable[i] = NULL;
         }
     }
     // Invalid all TLB entries

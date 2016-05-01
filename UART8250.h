@@ -24,8 +24,10 @@ class UART8250 : public MMIO_Device {
         std::vector<uint32_t> addresses;
     
         // UART Base address
-        #define UART_BASE 0xB40003F8
-        //#define UART_BASE 0x000003F8
+        // This was the address before 512mb phys region mapping
+        //#define UART_BASE 0xB40003F8
+        // This is it now
+        #define UART_BASE 0x140003F8
     
         // Receive Buffer
         Shared_Queue<char> receiveBuffer;

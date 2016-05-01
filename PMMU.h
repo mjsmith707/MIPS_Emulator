@@ -92,6 +92,7 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
+                *vaddr -= 0xA0000000;
                 return;
             }
             // KSEG0
@@ -101,6 +102,7 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorDataException();
                 }
+                *vaddr -= 0x80000000;
                 return;
             }
             // USEG
@@ -142,6 +144,7 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
+                *vaddr -= 0xA0000000;
                 return;
             }
             // KSEG0
@@ -151,11 +154,38 @@ class PMMU {
                 if (!cop0->inKernelMode()) {
                     throw AddressErrorIFException();
                 }
+                *vaddr -= 0x80000000;
                 return;
             }
             // USEG
             else {
                 translateVaddr(vaddr, cpuNum, cop0, false, false);
+                return;
+            }
+        }
+    
+        // Address space translation for physical access (i.e. writing 0xA... programs into 0x0 physical).
+        inline static void translateVaddrPhys(uint32_t* vaddr) {
+            // KSEG3
+            if (((*vaddr) & 0xE0000000) == 0xE0000000) {
+                return;
+            }
+            // KSSEG
+            else if (((*vaddr) & 0xC0000000) == 0xC0000000) {
+                return;
+            }
+            // KSEG1
+            else if (((*vaddr) & 0xA0000000) == 0xA0000000) {
+                *vaddr -= 0xA0000000;
+                return;
+            }
+            // KSEG0
+            else if (((*vaddr) & 0x80000000) == 0x80000000) {
+                *vaddr -= 0x80000000;
+                return;
+            }
+            // USEG
+            else {
                 return;
             }
         }
@@ -709,6 +739,7 @@ class PMMU {
         // Memory reading
         // Read a byte
         inline static void readBytePhys(uint32_t paddr, uint8_t* byte) {
+            translateVaddrPhys(&paddr);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((paddr >= mmioAddressTable[i]) && (paddr <= mmioAddressTable[i+1])) {
@@ -728,6 +759,7 @@ class PMMU {
         
         // Read a halfword
         inline static void readHalfPhys(uint32_t paddr, uint16_t* half) {
+            translateVaddrPhys(&paddr);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((paddr >= mmioAddressTable[i]) && (paddr <= mmioAddressTable[i+1])) {
@@ -751,6 +783,8 @@ class PMMU {
         
         // Read an unaligned halfword (lwl, lwr)
         inline static void readHalfUnalignedPhys(uint32_t paddr1, uint32_t paddr2, uint16_t* half) {
+            translateVaddrPhys(&paddr1);
+            translateVaddrPhys(&paddr2);
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
@@ -793,6 +827,7 @@ class PMMU {
         
         // Read a word
         inline static void readWordPhys(uint32_t paddr, uint32_t* word) {
+            translateVaddrPhys(&paddr);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((paddr >= mmioAddressTable[i]) && (paddr <= mmioAddressTable[i+1])) {
@@ -825,6 +860,7 @@ class PMMU {
         // Memory writing
         // Store a byte
         inline static void storeBytePhys(uint32_t paddr, uint8_t value) {
+            translateVaddrPhys(&paddr);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((paddr >= mmioAddressTable[i]) && (paddr <= mmioAddressTable[i+1])) {
@@ -844,6 +880,7 @@ class PMMU {
         
         // Store a halfword
         inline static void storeHalfPhys(uint32_t paddr, uint16_t value) {
+            translateVaddrPhys(&paddr);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((paddr >= mmioAddressTable[i]) && (paddr <= mmioAddressTable[i+1])) {
@@ -865,6 +902,8 @@ class PMMU {
         
         // Store an unaligned halfword (swl, swr)
         inline static void storeHalfUnalignedPhys(uint32_t paddr1, uint32_t paddr2, uint16_t value, Coprocessor0* cop0) {
+            translateVaddrPhys(&paddr1);
+            translateVaddrPhys(&paddr2);
             // Check if MMIO device holds address
             bool found1 = false;
             bool found2 = false;
@@ -905,6 +944,7 @@ class PMMU {
         
         // Store a word
         inline static void storeWordPhys(uint32_t paddr, uint32_t value) {
+            translateVaddrPhys(&paddr);
             // Check if MMIO device holds address
             for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
                 if ((paddr >= mmioAddressTable[i]) && (paddr <= mmioAddressTable[i+1])) {
