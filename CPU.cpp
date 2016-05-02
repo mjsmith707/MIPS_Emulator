@@ -184,6 +184,14 @@ bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
 void CPU::clearInterrupt(MIPSInterrupt interrupt) {
     // Assert interrupt line
     switch (interrupt) {
+        case MIPSInterrupt::SW0: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP0);
+            break;
+        }
+        case MIPSInterrupt::SW1: {
+            cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP1);
+            break;
+        }
         case MIPSInterrupt::HW0: {
             cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP2);
             break;
@@ -342,8 +350,8 @@ void CPU::executeException() {
         case 0x12: throw Coprocessor2Exception();
         case 0x13: throw WatchDataException();
         case 0x14: throw AddressErrorDataException();
-        case 0x15: throw TLBRefillDataException();
-        case 0x16: throw TLBInvalidDataException();
+        case 0x15: throw TLBRefillDataException(true);
+        case 0x16: throw TLBInvalidDataException(true);
         case 0x17: throw TLBReadInhibitException();
         case 0x18: throw TLBModifiedException();
         case 0x19: throw CacheErrorDataException();
@@ -1956,7 +1964,7 @@ dispatchStart:
                 DISPATCH();
             }
             default:
-                goto UNIMPLEMENTED_INSTRUCTION;
+                goto RESERVED_INSTRUCTION;
         }
     
 /*
@@ -2203,11 +2211,11 @@ dispatchStart:
             cop0.andRegisterHW(CO0_STATUS, ~(STATUS_EXL));
             // FIXME: Shadow Registers not implemented (optional)
         }
-        // MIPS16e not implemented (optional)
+        // TODO: MIPS16e not implemented (optional)
         PC = tempu32;
         LLBit = false;
         
-        // Manual is extremely unclear about how and when CAUSE_IP bits are cleared
+        // FIXME: Manual is extremely unclear about how and when CAUSE_IP bits are cleared
         // If they aren't we're just going to interrupt loop forever
         clearInterrupt(lastReceivedInt);
         

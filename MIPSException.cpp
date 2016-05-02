@@ -121,8 +121,7 @@ void MIPSException::setEntryHiVA(CPU* cpu) {
     // EntryHi_vpn2 = va_31-13
     cpu->cop0.andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_VPN2);
     uint32_t va = cpu->PC-4;
-    va >>= 18;
-    va <<= 13;
+    va &= ENTRYHI_VPN2;
     cpu->cop0.orRegisterHW(CO0_ENTRYHI, va);
     // FIXME: EntryHi_asid = asid referenced (TLB related)
 }
@@ -151,7 +150,8 @@ ColdResetException::ColdResetException() {
 }
 
 void ColdResetException::execute(CPU* cpu) {
-    // TODO: Random = TLBEntries -1
+    // Random = TLBEntries-1
+    cpu->cop0.setRegisterHW(CO0_RANDOM, TLBMAXENTRIES-1);
     // PageMask_maskX = 0
     cpu->cop0.andRegisterHW(CO0_PAGEMASK, ~PAGEMASK_MASKX);
     // PageGrain_esp = 0
@@ -453,25 +453,27 @@ void AddressErrorDataException::execute(CPU* cpu) {
 }
 
 // TLB Refill - Data Exception
-TLBRefillDataException::TLBRefillDataException() {
+TLBRefillDataException::TLBRefillDataException(bool storeRef) : store(storeRef) {
 }
 
 void TLBRefillDataException::execute(CPU* cpu) {
     setBadVaddr(cpu);
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
-    generalException(cpu, ExceptionType::TLBRefill, ExceptionCode::TLBS);
+    ExceptionCode ecode = store ? ExceptionCode::TLBS : ExceptionCode::TLBL;
+    generalException(cpu, ExceptionType::TLBRefill, ecode);
 }
 
 // TLB Invalid - Data Exception
-TLBInvalidDataException::TLBInvalidDataException() {
+TLBInvalidDataException::TLBInvalidDataException(bool storeRef) : store(storeRef) {
 }
 
 void TLBInvalidDataException::execute(CPU* cpu) {
     setBadVaddr(cpu);
     setContextBadVPN2(cpu);
     setEntryHiVA(cpu);
-    generalException(cpu, ExceptionType::General, ExceptionCode::TLBS);
+    ExceptionCode ecode = store ? ExceptionCode::TLBS : ExceptionCode::TLBL;
+    generalException(cpu, ExceptionType::General, ecode);
 }
 
 // TLB Read-Inhibit Exception

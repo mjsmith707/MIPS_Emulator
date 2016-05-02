@@ -79,7 +79,7 @@ void Cold_Reset_Exception() {
     memory->storeWordPhys(0xA0000000, 0xfc000000); // throw ColdResetException();
     cpu0->stepCPU(1);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
-    // FIXME: test Random = TLBEntries - 1
+    ASSERT_EQUAL(TLBMAXENTRIES-1u, cop0->getRegister(CO0_RANDOM));
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_PAGEMASK) & PAGEMASK_MASKX);
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_PAGEGRAIN) & PAGEGRAIN_ESP);
     ASSERT_EQUAL(0u, cop0->getRegister(CO0_WIRED));
@@ -212,11 +212,113 @@ void Address_Error_IF_Exception() {
 }
 
 void TLB_Refill_IF_Exception() {
-    TEST_NOT_IMPLEMENTED(); // TODO: TLB Related stuff
+    // Status_bev = 0, Status_exl = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000006);  // throw TLBRefillIFException();
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x02u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000000u, cpu0->getPC());
+    
+    // Status_bev = 0, Status_exl = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000006);  // throw TLBRefillIFException();
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->orRegisterHW(CO0_STATUS, STATUS_EXL);     // Status_exl = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x02u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000180u, cpu0->getPC());
+    
+    // Status_bev = 1, Status_exl = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000006);  // throw TLBRefillIFException();
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x02u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00200u, cpu0->getPC());
+    
+    // Status_bev = 1, Status_exl = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000006);  // throw TLBRefillIFException();
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->orRegisterHW(CO0_STATUS, STATUS_EXL);     // Status_exl = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x02u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());
 }
 
 void TLB_Invalid_IF_Exception() {
-    TEST_NOT_IMPLEMENTED(); // TODO: TLB Related stuff
+    // Status_bev = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000007);  // throw TLBInvalidIFException();
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x02u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000180u, cpu0->getPC());
+    
+    // Status_bev = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000007);  // throw TLBInvalidIFException();
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x02u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());
 }
 
 void TLB_Execute_Inhibit_Exception() {
@@ -455,11 +557,115 @@ void Address_Error_Data_Exception() {
 }
 
 void TLB_Refill_Data_Exception() {
-    TEST_NOT_IMPLEMENTED(); // TODO: TLB Related stuff
+    // Testing as if the address reference was a store.
+    // For IF and Load, see TLB_Refill_IF_Exception() which uses the same ExcCode.
+    // Status_bev = 0, Status_exl = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000015);  // throw TLBRefillDataException(true);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x03u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000000u, cpu0->getPC());
+    
+    // Status_bev = 0, Status_exl = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000015);  // throw TLBRefillDataException(true);
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->orRegisterHW(CO0_STATUS, STATUS_EXL);     // Status_exl = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x03u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000180u, cpu0->getPC());
+    
+    // Status_bev = 1, Status_exl = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000015);  // throw TLBRefillDataException(true);
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_EXL);   // Status_exl = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x03u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00200u, cpu0->getPC());
+    
+    // Status_bev = 1, Status_exl = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000015);  // throw TLBRefillDataException(true);
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->orRegisterHW(CO0_STATUS, STATUS_EXL);     // Status_exl = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x03u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());
 }
 
 void TLB_Invalid_Data_Exception() {
-    TEST_NOT_IMPLEMENTED(); // TODO: TLB Related stuff
+    // Status_bev = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000016);  // throw TLBInvalidDataException(true);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x03u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000180u, cpu0->getPC());
+    
+    // Status_bev = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000016);  // throw TLBInvalidDataException(true);
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x03u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());
 }
 
 void TLB_Read_Inhibit_Exception() {
@@ -467,7 +673,39 @@ void TLB_Read_Inhibit_Exception() {
 }
 
 void TLB_Modified_Exception() {
-    TEST_NOT_IMPLEMENTED(); // TODO: TLB Related stuff
+    // Status_bev = 0
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000018);  // throw TLBInvalidDataException(true);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    cop0->andRegisterHW(CO0_STATUS, ~STATUS_BEV);   // Status_bev = 0
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x01u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0x80000180u, cpu0->getPC());
+    
+    // Status_bev = 1
+    reset();
+    cpu0->setPC(0xA0000000);
+    memory->storeWordPhys(0xA0000000, 0xfc000018);  // throw TLBInvalidDataException(true);
+    cop0 = cpu0->getControlCoprocessor();
+    cop0->orRegisterHW(CO0_STATUS, STATUS_BEV);     // Status_bev = 1
+    cop0->andRegisterHW(CO0_ENTRYHI, ~ENTRYHI_ASID); // Entryhi_asid = 0
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);          // Entryhi_asid = 10
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x01u, (cop0->getRegister(CO0_CAUSE) & CAUSE_EXCCODE) >> 2u);
+    // TODO: ContextConfig not implemented
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_BADVADDR));
+    ASSERT_EQUAL(0xA0000000u, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_VPN2);
+    // FIXME: Is this correct? Faulting reference should be from ASID 10.. manual is ambiguous.
+    ASSERT_EQUAL(0x0Au, cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID);
+    ASSERT_EQUAL(0xBFC00380u, cpu0->getPC());
 }
 
 void Cache_Error_Data_Exception() {

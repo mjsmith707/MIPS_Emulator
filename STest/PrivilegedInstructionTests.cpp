@@ -118,6 +118,22 @@ void MIPS_TLBR() {
 
 void MIPS_TLBWI() {
     TEST_NOT_IMPLEMENTED();
+    /*
+    reset();
+    cpu0->setPC(0xA0000000);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    
+    // Set up registers for TLB write
+    // Index = 5
+    cop0->setRegisterHW(CO0_INDEX, 5);
+    // Page Size = 4KB
+    cop0->setRegisterHW(CO0_PAGEMASK, 0x0);
+    // EntryHI_vpn2 = 0x1 (0x10000000)
+    cop0->setRegisterHW(CO0_ENTRYHI, 0x1 << 29);
+    // EntryHi_asid = 0xA
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);
+    // EntryLo0_PFN = 
+    */
 }
 
 void MIPS_TLBWR() {

@@ -38,7 +38,10 @@ class PMMU {
     
         // TLB and Virtual Memory
     
-        // TLB entry
+        // TLB entry definition
+    #ifdef TEST_PROJECT
+        public:
+    #endif
         typedef struct TLBEntry_t {
             uint32_t Mask;
             uint32_t VPN2;
@@ -53,10 +56,12 @@ class PMMU {
             bool D1;
             bool V1;
         } TLBEntry_t;
+    #ifdef TEST_PROJECT
+        private:
+    #endif
     
         // Per CPU TLB entry table
         static TLBEntry_t TLBTable[MAXCPUS][TLBMAXENTRIES];
-
     
         /* The following translateVaddr functions differ only by the types of exceptions thrown. */
     
@@ -257,7 +262,7 @@ class PMMU {
                     
                     if (v == false) {
                         if (data) {
-                            throw TLBRefillDataException();
+                            throw TLBRefillDataException(store);
                         }
                         else {
                             throw TLBRefillIFException();
@@ -279,7 +284,7 @@ class PMMU {
             
             if (found == false) {
                 if (data == true) {
-                    throw TLBRefillDataException();
+                    throw TLBRefillDataException(store);
                 }
                 else {
                     throw TLBRefillIFException();
@@ -987,7 +992,20 @@ class PMMU {
             frame[paddr+2] = value >> 8;
             frame[paddr+3] = value;
         }
-
+    
+        /* Unit Testing Interface */
+    #ifdef TEST_PROJECT
+        static TLBEntry_t getTLBEntry(uint8_t cpunum, size_t i) {
+            if (cpunum > MAXCPUS) {
+                throw std::runtime_error("getTLBEntry cpunum > MAXCPUS");
+            }
+            if (i > TLBMAXENTRIES) {
+                throw std::runtime_error("getTLBEntry index > TLBMAXENTRIES");
+            }
+            
+            return TLBTable[cpunum][i];
+        }
+    #endif
 };
 
 #endif /* PMMU_h */

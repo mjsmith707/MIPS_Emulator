@@ -42,10 +42,10 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     
     // EntryLo0 Register, EntryLo1 Register
     // reset: 00000000000000000000000000000000
-    // mask1: 11111111111111111111111111111111
-    // mask2: 00111111111111111111111111111111
-    registerFile[2][0] = new COP0Register(0x0, 0xFFFFFFFF, 0x3FFFFFFF);
-    registerFile[3][0] = new COP0Register(0x0, 0xFFFFFFFF, 0x3FFFFFFF);
+    // mask1: 00000111111111111111111111111111
+    // mask2: 00000111111111111111111111111111
+    registerFile[2][0] = new COP0Register(0x0, 0x07FFFFFF, 0x07FFFFFF);
+    registerFile[3][0] = new COP0Register(0x0, 0x07FFFFFF, 0x07FFFFFF);
     
     // Context Register
     // reset: 00000000000000000000000000000000

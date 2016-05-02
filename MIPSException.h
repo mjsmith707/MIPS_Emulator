@@ -220,14 +220,16 @@ public:
 // TLB Refill - Data Exception
 class TLBRefillDataException : public MIPSException {
 public:
-    TLBRefillDataException();
+    TLBRefillDataException(bool storeRef);
+    const bool store;
     void execute(CPU*);
 };
 
 // TLB Invalid - Data Exception
 class TLBInvalidDataException : public MIPSException {
 public:
-    TLBInvalidDataException();
+    TLBInvalidDataException(bool storeRef);
+    const bool store;
     void execute(CPU*);
 };
 

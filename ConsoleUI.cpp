@@ -57,11 +57,13 @@ void ConsoleUI::waitForInput() {
         }
         
         // Check if message is available from queue
-        while (!msgQueue.isEmpty()) {
+        size_t count = 0;
+        while ((count < 1000) && (!msgQueue.isEmpty())) {
             // This will need to be split into a new window at some point but for now it will have to do
             std::string msg = msgQueue.pop();
             printw("LOM> %s\n", msg.c_str());
             refresh();
+            count++;
         }
     }
     
