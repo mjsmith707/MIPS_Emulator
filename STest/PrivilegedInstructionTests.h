@@ -25,5 +25,6 @@ void MIPS_TLBWI();
 void MIPS_TLBWR();
 void MIPS_WAIT();
 void MIPS_WRPGPR();
+void TEST_VADDR_TRANSLATION();
 
 #endif /* PrivilegedInstructionTests_h */

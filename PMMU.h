@@ -245,7 +245,7 @@ class PMMU {
                     bool v;
                     uint8_t c;
                     bool d;
-                    if (((*vaddr) & EvenOddBit) == 0) {
+                    if (((*vaddr) & (0x1u << EvenOddBit)) == 0) {
                         pfn = TLBTable[cpuNum][i].PFN0;
                         v = TLBTable[cpuNum][i].V0;
                         c = TLBTable[cpuNum][i].C0;
@@ -653,11 +653,16 @@ class PMMU {
             // Set Index bit 31 to 1
             cop0->setRegisterHW(CO0_INDEX, 0x1u << 31);
             
+            // Get current EntryHi
+            uint32_t entryhi = cop0->getRegister(CO0_ENTRYHI);
+            uint8_t asid = entryhi & ENTRYHI_ASID;
+            entryhi &= ENTRYHI_FULLVPN;
+            
             for (uint8_t i=0; i<TLBMAXENTRIES; i++) {
                 // There has to be a way to simplify this...
                 // Pg 268 vol 3
-                if (((TLBTable[cpuNum][i].VPN2 & ~TLBTable[cpuNum][i].Mask) == (cop0->getRegister(CO0_ENTRYHI) & ~TLBTable[cpuNum][i].Mask))
-                    && (TLBTable[cpuNum][i].G || (TLBTable[cpuNum][i].ASID == (cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID)))) {
+                if (((TLBTable[cpuNum][i].VPN2 & ~TLBTable[cpuNum][i].Mask) == (entryhi & ~TLBTable[cpuNum][i].Mask))
+                    && (TLBTable[cpuNum][i].G || (TLBTable[cpuNum][i].ASID == asid))) {
                     
                     // Update CO0_Index
                     cop0->setRegisterHW(CO0_INDEX, i);
@@ -688,12 +693,12 @@ class PMMU {
             cop0->setRegisterHW(CO0_ENTRYHI, (TLBTable[cpuNum][i].VPN2 & ~TLBTable[cpuNum][i].Mask) | TLBTable[cpuNum][i].ASID);
             
             // Update EntryLo1
-            cop0->setRegisterHW(CO0_ENTRYLO1, (TLBTable[cpuNum][i].PFN1 & ~TLBTable[cpuNum][i].Mask)
+            cop0->setRegisterHW(CO0_ENTRYLO1, ((TLBTable[cpuNum][i].PFN1 & ~TLBTable[cpuNum][i].Mask) >> 6u)
                                   | (TLBTable[cpuNum][i].C1 << 3) | (TLBTable[cpuNum][i].D1 << 2) | (TLBTable[cpuNum][i].V1 << 1)
                                   | (TLBTable[cpuNum][i].G));
             
             // Update EntryLo0
-            cop0->setRegisterHW(CO0_ENTRYLO0, (TLBTable[cpuNum][i].PFN0 & ~TLBTable[cpuNum][i].Mask)
+            cop0->setRegisterHW(CO0_ENTRYLO0, ((TLBTable[cpuNum][i].PFN0 & ~TLBTable[cpuNum][i].Mask) >> 6u)
                                   | (TLBTable[cpuNum][i].C0 << 3) | (TLBTable[cpuNum][i].D0 << 2) | (TLBTable[cpuNum][i].V0 << 1)
                                   | (TLBTable[cpuNum][i].G));
         }
@@ -714,15 +719,15 @@ class PMMU {
             
             // Insert TLB Entries
             TLBTable[cpuNum][i].Mask = cop0->getRegister(CO0_PAGEMASK) & PAGEMASK_MASK;
-            TLBTable[cpuNum][i].VPN2 = cop0->getRegister(CO0_ENTRYHI) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].VPN2 = (cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_FULLVPN) & ~TLBTable[cpuNum][i].Mask;
             TLBTable[cpuNum][i].ASID = cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID;
             TLBTable[cpuNum][i].G = ((cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_G) > 0) && ((cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_G) > 0);
-            TLBTable[cpuNum][i].PFN1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_PFN) & ~TLBTable[cpuNum][i].Mask;
-            TLBTable[cpuNum][i].C1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_C);
+            TLBTable[cpuNum][i].PFN1 = ((cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_PFN) & ~TLBTable[cpuNum][i].Mask) << 6u;
+            TLBTable[cpuNum][i].C1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_C) >> 3u;
             TLBTable[cpuNum][i].D1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_D) > 0;
             TLBTable[cpuNum][i].V1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_V) > 0;
-            TLBTable[cpuNum][i].PFN0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_PFN) & ~TLBTable[cpuNum][i].Mask;
-            TLBTable[cpuNum][i].C0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_C);
+            TLBTable[cpuNum][i].PFN0 = ((cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_PFN) & ~TLBTable[cpuNum][i].Mask) << 6u;
+            TLBTable[cpuNum][i].C0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_C) >> 3u;
             TLBTable[cpuNum][i].D0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_D) > 0;
             TLBTable[cpuNum][i].V0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_V) > 0;
         }
@@ -740,15 +745,15 @@ class PMMU {
             
             // Insert TLB Entries
             TLBTable[cpuNum][i].Mask = cop0->getRegister(CO0_PAGEMASK) & PAGEMASK_MASK;
-            TLBTable[cpuNum][i].VPN2 = cop0->getRegister(CO0_ENTRYHI) & ~TLBTable[cpuNum][i].Mask;
+            TLBTable[cpuNum][i].VPN2 = (cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_FULLVPN) & ~TLBTable[cpuNum][i].Mask;
             TLBTable[cpuNum][i].ASID = cop0->getRegister(CO0_ENTRYHI) & ENTRYHI_ASID;
             TLBTable[cpuNum][i].G = ((cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_G) > 0) && ((cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_G) > 0);
-            TLBTable[cpuNum][i].PFN1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_PFN) & ~TLBTable[cpuNum][i].Mask;
-            TLBTable[cpuNum][i].C1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_C);
+            TLBTable[cpuNum][i].PFN1 = ((cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_PFN) & ~TLBTable[cpuNum][i].Mask) << 6u;
+            TLBTable[cpuNum][i].C1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_C) >> 3u;
             TLBTable[cpuNum][i].D1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_D) > 0;
             TLBTable[cpuNum][i].V1 = (cop0->getRegister(CO0_ENTRYLO1) & ENTRYLO1_V) > 0;
-            TLBTable[cpuNum][i].PFN0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_PFN) & ~TLBTable[cpuNum][i].Mask;
-            TLBTable[cpuNum][i].C0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_C);
+            TLBTable[cpuNum][i].PFN0 = ((cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_PFN) & ~TLBTable[cpuNum][i].Mask) << 6u;
+            TLBTable[cpuNum][i].C0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_C) >> 3u;
             TLBTable[cpuNum][i].D0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_D) > 0;
             TLBTable[cpuNum][i].V0 = (cop0->getRegister(CO0_ENTRYLO0) & ENTRYLO0_V) > 0;
         }

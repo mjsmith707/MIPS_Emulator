@@ -42,10 +42,10 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     
     // EntryLo0 Register, EntryLo1 Register
     // reset: 00000000000000000000000000000000
-    // mask1: 00000111111111111111111111111111
-    // mask2: 00000111111111111111111111111111
-    registerFile[2][0] = new COP0Register(0x0, 0x07FFFFFF, 0x07FFFFFF);
-    registerFile[3][0] = new COP0Register(0x0, 0x07FFFFFF, 0x07FFFFFF);
+    // mask1: 00000011111111111111111111111111
+    // mask2: 00000011111111111111111111111111
+    registerFile[2][0] = new COP0Register(0x0, 0x3FFFFFF, 0x3FFFFFF);
+    registerFile[3][0] = new COP0Register(0x0, 0x3FFFFFF, 0x3FFFFFF);
     
     // Context Register
     // reset: 00000000000000000000000000000000
@@ -66,10 +66,11 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
     registerFile[4][2] = new COP0Register(0x0, 0xFFFFFFFF, 0xFFFFFFFF);
     
     // PageMask Register
+    // 4KB page sizes only
     // reset: 00000000000000000000000000000000
-    // mask1: 00011111111111111111100000000000
-    // mask2: 00011111111111111111100000000000
-    registerFile[5][0] = new COP0Register(0x0, 0x1FFFF800, 0x1FFFF800);
+    // mask1: 00000000000000000000000000000000
+    // mask2: 00000000000000000000000000000000
+    registerFile[5][0] = new COP0Register(0x0, 0x0, 0x0);
     
     // PageGrain Register
     // reset: 00000000000000000000000000000000

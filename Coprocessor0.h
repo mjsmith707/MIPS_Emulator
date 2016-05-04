@@ -103,6 +103,7 @@
 // EntryHi Register Fields (CP0 Register 10, Select 0)
 #define ENTRYHI_VPN2    0xFFFFE000
 #define ENTRYHI_VPN2X   0x00001800
+#define ENTRYHI_FULLVPN 0xFFFFF800
 #define ENTRYHI_EH      0x00000400
 #define ENTRYHI_INV     0x00000400
 #define ENTRYHI_ASIDX   0x00000300

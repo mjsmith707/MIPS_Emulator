@@ -22,6 +22,7 @@ void add_privileged_instruction_tests() {
     add_test("CPU Privileged Instruction Tests", "MIPS_TLBWR", &MIPS_TLBWR);
     add_test("CPU Privileged Instruction Tests", "MIPS_WAIT", &MIPS_WAIT);
     add_test("CPU Privileged Instruction Tests", "MIPS_WRPGPR", &MIPS_WRPGPR);
+    add_test("CPU Privileged Instruction Tests", "TEST_VADDR_TRANSLATION", &TEST_VADDR_TRANSLATION);
 }
 
 void MIPS_DI() {
@@ -109,16 +110,11 @@ void MIPS_RDPGPR() {
 }
 
 void MIPS_TLBP() {
-    TEST_NOT_IMPLEMENTED();
-}
-
-void MIPS_TLBR() {
-    TEST_NOT_IMPLEMENTED();
-}
-
-void MIPS_TLBWI() {
-    TEST_NOT_IMPLEMENTED();
-    /*
+    // Insert an entry into the TLB
+    // This is basically repeating TLBWI, so if it fails,
+    // the result of this is meaningless.
+    
+    /* Begin TLBWI */
     reset();
     cpu0->setPC(0xA0000000);
     Coprocessor0* cop0 = cpu0->getControlCoprocessor();
@@ -127,17 +123,204 @@ void MIPS_TLBWI() {
     // Index = 5
     cop0->setRegisterHW(CO0_INDEX, 5);
     // Page Size = 4KB
-    cop0->setRegisterHW(CO0_PAGEMASK, 0x0);
-    // EntryHI_vpn2 = 0x1 (0x10000000)
-    cop0->setRegisterHW(CO0_ENTRYHI, 0x1 << 29);
+    // This is pulled directly from Linux:
+    //  arch/mips/include/asm/mipsregs.h PM_4K
+    // although Pagemask is locked to 0.
+    // This is for bits 12..11 and only has an
+    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // aka if support for 1KB pages exists.
+    cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
+    // EntryHI_vpn2 = 0x00400000
+    cop0->setRegisterHW(CO0_ENTRYHI, 0x00400000);
     // EntryHi_asid = 0xA
     cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);
-    // EntryLo0_PFN = 
-    */
+    // EntryLo0_PFN = 0x0
+    // EntryLo0_C = 3 (Cacheable)
+    // EntryLo0_D = 1 (Writable)
+    // EntryLo0_V = 1 (Valid)
+    // EntryLo0_G = 0 (Not global)
+    // Remap to pfn 0 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO0, 0x1E);
+    // EntryLo1_PFN = 0x1
+    // EntryLo1_C = 3 (Cacheable)
+    // EntryLo1_D = 1 (Writable)
+    // EntryLo1_V = 1 (Valid)
+    // EntryLo1_G = 0 (Not global)
+    // Remap to pfn 1 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO1, 0x5E);
+    
+    memory->storeWordPhys(0xA0000000, 0x42000002);  // tlbwi
+    cpu0->stepCPU(1);
+    /* End TLBWI */
+    
+    
+    // Run TLBP
+    memory->storeWordPhys(0xA0000004, 0x42000008);  // tlbp
+    cpu0->stepCPU(1);
+    
+    ASSERT_EQUAL(0x5u, cop0->getRegister(CO0_INDEX));
+}
+
+void MIPS_TLBR() {
+    /* Begin TLBWI */
+    reset();
+    cpu0->setPC(0xA0000000);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    
+    // Set up registers for TLB write
+    // Index = 0
+    cop0->setRegisterHW(CO0_INDEX, 0);
+    // Page Size = 4KB
+    // This is pulled directly from Linux:
+    //  arch/mips/include/asm/mipsregs.h PM_4K
+    // although Pagemask is locked to 0.
+    // This is for bits 12..11 and only has an
+    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // aka if support for 1KB pages exists.
+    cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
+    // EntryHI_vpn2 = 0x00400000
+    cop0->setRegisterHW(CO0_ENTRYHI, 0x00400000);
+    // EntryHi_asid = 0xA
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);
+    // EntryLo0_PFN = 0x0
+    // EntryLo0_C = 3 (Cacheable)
+    // EntryLo0_D = 1 (Writable)
+    // EntryLo0_V = 1 (Valid)
+    // EntryLo0_G = 0 (Not global)
+    // Remap to pfn 0 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO0, 0x1E);
+    // EntryLo1_PFN = 0x1
+    // EntryLo1_C = 3 (Cacheable)
+    // EntryLo1_D = 1 (Writable)
+    // EntryLo1_V = 1 (Valid)
+    // EntryLo1_G = 0 (Not global)
+    // Remap to pfn 1 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO1, 0x5E);
+    
+    memory->storeWordPhys(0xA0000000, 0x42000002); // tlbwi
+    cpu0->stepCPU(1);
+    /* End TLBWI */
+    
+    memory->storeWordPhys(0xA0000004, 0x42000001); // tlbp
+    cpu0->stepCPU(1);
+    
+    ASSERT_EQUAL(0x0040000Au, cop0->getRegister(CO0_ENTRYHI));
+    ASSERT_EQUAL(0x1Eu, cop0->getRegister(CO0_ENTRYLO0));
+    ASSERT_EQUAL(0x5Eu, cop0->getRegister(CO0_ENTRYLO1));
+}
+
+void MIPS_TLBWI() {
+    reset();
+    cpu0->setPC(0xA0000000);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    
+    // Set up registers for TLB write
+    // Index = 0
+    cop0->setRegisterHW(CO0_INDEX, 0);
+    // Page Size = 4KB
+    // This is pulled directly from Linux:
+    //  arch/mips/include/asm/mipsregs.h PM_4K
+    // although Pagemask is locked to 0.
+    // This is for bits 12..11 and only has an
+    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // aka if support for 1KB pages exists.
+    cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
+    // EntryHI_vpn2 = 0x00400000
+    cop0->setRegisterHW(CO0_ENTRYHI, 0x00400000);
+    // EntryHi_asid = 0xA
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);
+    // EntryLo0_PFN = 0x0
+    // EntryLo0_C = 3 (Cacheable)
+    // EntryLo0_D = 1 (Writable)
+    // EntryLo0_V = 1 (Valid)
+    // EntryLo0_G = 0 (Not global)
+    // Remap to pfn 0 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO0, 0x1E);
+    // EntryLo1_PFN = 0x1
+    // EntryLo1_C = 3 (Cacheable)
+    // EntryLo1_D = 1 (Writable)
+    // EntryLo1_V = 1 (Valid)
+    // EntryLo1_G = 0 (Not global)
+    // Remap to pfn 1 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO1, 0x5E);
+    
+    memory->storeWordPhys(0xA0000000, 0x42000002); // tlbwi
+    cpu0->stepCPU(1);
+    
+    PMMU::TLBEntry_t entry = memory->getTLBEntry(0, 0);
+    
+    ASSERT_EQUAL(0x0u, entry.Mask);
+    ASSERT_EQUAL(0x00400000u, entry.VPN2);
+    ASSERT_EQUAL((uint8_t)0xA, entry.ASID);
+    ASSERT_EQUAL(false, entry.G);
+    // Entry 0
+    ASSERT_EQUAL(0x0u, entry.PFN0 >> 12u);  // 4KB frame
+    ASSERT_EQUAL((uint8_t)0x03, entry.C0);
+    ASSERT_EQUAL(true, entry.D0);
+    ASSERT_EQUAL(true, entry.V0);
+    // Entry 1
+    ASSERT_EQUAL(0x1u, entry.PFN1 >> 12u);  // 4KB frame
+    ASSERT_EQUAL((uint8_t)0x03, entry.C1);
+    ASSERT_EQUAL(true, entry.D1);
+    ASSERT_EQUAL(true, entry.V1);
 }
 
 void MIPS_TLBWR() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0xA0000000);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    
+    // Set up registers for TLB write
+    
+    // Page Size = 4KB
+    // This is pulled directly from Linux:
+    //  arch/mips/include/asm/mipsregs.h PM_4K
+    // although Pagemask is locked to 0.
+    // This is for bits 12..11 and only has an
+    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // aka if support for 1KB pages exists.
+    cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
+    // EntryHI_vpn2 = 0x00400000
+    cop0->setRegisterHW(CO0_ENTRYHI, 0x00400000);
+    // EntryHi_asid = 0xA
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);
+    // EntryLo0_PFN = 0x0
+    // EntryLo0_C = 3 (Cacheable)
+    // EntryLo0_D = 1 (Writable)
+    // EntryLo0_V = 1 (Valid)
+    // EntryLo0_G = 0 (Not global)
+    // Remap to pfn 0 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO0, 0x1E);
+    // EntryLo1_PFN = 0x1
+    // EntryLo1_C = 3 (Cacheable)
+    // EntryLo1_D = 1 (Writable)
+    // EntryLo1_V = 1 (Valid)
+    // EntryLo1_G = 0 (Not global)
+    // Remap to pfn 1 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO1, 0x5E);
+    
+    memory->storeWordPhys(0xA0000000, 0x42000006); // tlbwr
+    cpu0->stepCPU(1);
+    
+    // Get Random index
+    uint32_t random = cop0->getRegister(CO0_RANDOM);
+    
+    PMMU::TLBEntry_t entry = memory->getTLBEntry(0, random);
+    
+    ASSERT_EQUAL(0x0u, entry.Mask);
+    ASSERT_EQUAL(0x00400000u, entry.VPN2);
+    ASSERT_EQUAL((uint8_t)0xA, entry.ASID);
+    ASSERT_EQUAL(false, entry.G);
+    // Entry 0
+    ASSERT_EQUAL(0x0u, entry.PFN0 >> 12u);  // 4KB frame
+    ASSERT_EQUAL((uint8_t)0x03, entry.C0);
+    ASSERT_EQUAL(true, entry.D0);
+    ASSERT_EQUAL(true, entry.V0);
+    // Entry 1
+    ASSERT_EQUAL(0x1u, entry.PFN1 >> 12u);  // 4KB frame
+    ASSERT_EQUAL((uint8_t)0x03, entry.C1);
+    ASSERT_EQUAL(true, entry.D1);
+    ASSERT_EQUAL(true, entry.V1);
 }
 
 void MIPS_WAIT() {
@@ -146,4 +329,65 @@ void MIPS_WAIT() {
 
 void MIPS_WRPGPR() {
     TEST_NOT_IMPLEMENTED();
+}
+
+void TEST_VADDR_TRANSLATION() {
+    // Tests translateVaddr
+    // Hardly comprehensive but it does test
+    // higher size page frame numbers
+    // and the dual entry tlb behavior.
+    
+    // Write Dual TLB entry
+    reset();
+    cpu0->setPC(0xA0000000);
+    Coprocessor0* cop0 = cpu0->getControlCoprocessor();
+    
+    // Set up registers for TLB write
+    // Index = 0
+    cop0->setRegisterHW(CO0_INDEX, 0);
+    // Page Size = 4KB
+    // This is pulled directly from Linux:
+    //  arch/mips/include/asm/mipsregs.h PM_4K
+    // although Pagemask is locked to 0.
+    // This is for bits 12..11 and only has an
+    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // aka if support for 1KB pages exists.
+    cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
+    // EntryHI_vpn2 = 0x00400000
+    cop0->setRegisterHW(CO0_ENTRYHI, 0x00400000);
+    // EntryHi_asid = 0xA
+    cop0->orRegisterHW(CO0_ENTRYHI, 0x0A);
+    // EntryLo0_PFN = 0x2000
+    // EntryLo0_C = 3 (Cacheable)
+    // EntryLo0_D = 1 (Writable)
+    // EntryLo0_V = 1 (Valid)
+    // EntryLo0_G = 0 (Not global)
+    // Remap to pfn 2000 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO0, 0x8001E);
+    // EntryLo1_PFN = 0x2001
+    // EntryLo1_C = 3 (Cacheable)
+    // EntryLo1_D = 1 (Writable)
+    // EntryLo1_V = 1 (Valid)
+    // EntryLo1_G = 0 (Not global)
+    // Remap to pfn 2001 for testing
+    cop0->setRegisterHW(CO0_ENTRYLO1, 0x8005E);
+    
+    memory->storeWordPhys(0xA0000000, 0x42000002); // tlbwi
+    cpu0->stepCPU(1);
+    
+    cpu0->setPC(0x00400000);
+    // PFN 2000
+    memory->storeWordPhys(0x02000000, 0x200200c8);   // addi	v0,zero,200
+    memory->storeWordPhys(0x02000004, 0x200301f4);   // addi	v1,zero,500
+    memory->storeWordPhys(0x02000008, 0x00432025);   // or a0,v0,v1
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0x000001fcu, cpu0->getRegister(4));
+    
+    // PFN 2001
+    cpu0->setPC(0x00401000);
+    memory->storeWordPhys(0x02001000, 0x200200c8);   // addi	v0,zero,200
+    memory->storeWordPhys(0x02001004, 0x200301f4);   // addi	v1,zero,500
+    memory->storeWordPhys(0x02001008, 0x00432026);   // xor a0,v0,v1
+    cpu0->stepCPU(3);
+    ASSERT_EQUAL(0x0000013cu, cpu0->getRegister(4));
 }
