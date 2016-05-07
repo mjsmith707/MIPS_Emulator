@@ -276,6 +276,12 @@ uint32_t CPU::getJimm() {
 uint8_t CPU::getSel() {
     return this->sel;
 }
+bool CPU::getLLBit() {
+    return this->LLBit;
+}
+uint32_t CPU::getLLPFN() {
+    return this->LLPFN;
+}
 void CPU::setIR(uint32_t val) {
     this->IR = val;
 }
@@ -314,6 +320,12 @@ void CPU::setJimm(uint32_t val) {
 }
 void CPU::setSel(uint8_t val) {
     this->sel = val;
+}
+void CPU::setLLBit(bool val) {
+    this->LLBit = val;
+}
+void CPU::setLLPFN(uint32_t val) {
+    this->LLPFN = val;
 }
 void CPU::executeException() {
     DECODE_JIMM();
@@ -1286,10 +1298,12 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        memory->readWord(tempi32, &tempu32, CPUNUM, &cop0);
+        memory->readWordLL(tempi32, &tempu32, CPUNUM, &cop0);
+        // Start RWM sequence
+        LLPFN = (tempi32&0xFFFFF000) >> 12;
+        LLBit = true;
         tempi32 = tempu32;
         registers[rt] = tempi32;
-        LLBit = true;
         DISPATCH();
     
     // 0x31 Load Word to Floating Point
@@ -1328,10 +1342,19 @@ dispatchStart:
         DECODE_IMMSE();
         tempi32 = immse;
         tempi32 += registers[rs];
-        if (LLBit) {
-            memory->storeWord(tempi32, registers[rt], CPUNUM, &cop0);
+        // Check if this is the same PFN.
+        // FIXME: No this does not truely work across address translations.
+        // E.x. You could LL on one address and SC on another address if they're
+        // in the same frame.
+        // MIPS does not specify whether that's valid or not at all.
+        if ((LLBit) && (LLPFN == ((tempi32&0xFFFFF000) >> 12))) {
+            registers[rt] = memory->storeWordSC(tempi32, registers[rt], CPUNUM, &cop0) == true ? 1 : 0;
+            // If successful then end RWM sequence
+            LLBit = registers[rt] > 0 ? false : true;
         }
-        registers[rt] = LLBit == true ? 1 : 0;
+        else {
+            registers[rt] = false;
+        }
         DISPATCH();
     
     // 0x39 Store Word from Floating Point

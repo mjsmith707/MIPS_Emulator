@@ -123,6 +123,8 @@ class CPU {
         uint32_t branchAddr;
     
         // Atomic LL/SC
+        // Page frame number of current RWM sequence
+        uint32_t LLPFN;
         bool LLBit;
     
         // Currently decoded fields
@@ -273,6 +275,8 @@ class CPU {
         int32_t getImmSE();
         uint32_t getJimm();
         uint8_t getSel();
+        bool getLLBit();
+        uint32_t getLLPFN();
         // Just because these exist doesn't mean they should be used
         void setIR(uint32_t);
         void setHI(uint32_t);
@@ -287,6 +291,8 @@ class CPU {
         void setImmSE(int32_t);
         void setJimm(uint32_t);
         void setSel(uint8_t);
+        void setLLBit(bool);
+        void setLLPFN(uint32_t);
     #endif
 };
 

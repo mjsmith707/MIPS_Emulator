@@ -114,7 +114,18 @@ void MIPS_LHU() {
 }
 
 void MIPS_LL() {
-    TEST_NOT_IMPLEMENTED();
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(29, 0xA0010000);  // Init Stack pointer
+    ASSERT_EQUAL(false, memory->getFrameBool(0xA0010000));  // reset() should be clearing this bit every time.
+    memory->storeWordPhys(0xA0010000, 0xDEADBEEF);          // Store value, frame's LLbit is now dirty
+    ASSERT_EQUAL(true, memory->getFrameBool(0xA0010000));
+    memory->storeWordPhys(0xA0000000, 0xc3a80000);          // ll $t0, 0($sp)
+    cpu0->stepCPU(1);                                       // Frame's LLbit is now cleared
+    ASSERT_EQUAL(true, cpu0->getLLBit());                   // RWM sequence started
+    ASSERT_EQUAL(0xA0010u, cpu0->getLLPFN());
+    ASSERT_EQUAL(0xDEADBEEFu, cpu0->getRegister(8));
+    ASSERT_EQUAL(false, memory->getFrameBool(0xA0010000));
 }
 
 // TODO: This and SW are the same test
@@ -209,7 +220,39 @@ void MIPS_SB() {
 }
 
 void MIPS_SC() {
-    TEST_NOT_IMPLEMENTED();
+    // Successful SC
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(29, 0xA0010000);  // Init Stack pointer
+    cpu0->setRegister(8, 0xDEADBEEF);   // $t0 = 0xDEADBEEF
+    memory->storeWordPhys(0xA0000000, 0xe3a80000);          // sc $t0, 0($sp)
+    ASSERT_EQUAL(false, memory->getFrameBool(0xA0010000));  // reset() should be clearing this bit every time.
+    cpu0->setLLBit(true);                                   // Begin RWM sequence (normally set by LL instruction)
+    cpu0->setLLPFN(0xA0010);
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x1u, cpu0->getRegister(8));   // Successful
+    ASSERT_EQUAL(false, cpu0->getLLBit());      // RWM sequence ended
+    ASSERT_EQUAL(true, memory->getFrameBool(0xA0010000));   // Frame is now dirty
+    uint32_t word = 0;
+    memory->readWordPhys(0xA0010000, &word);
+    ASSERT_EQUAL(0xDEADBEEFu, word);
+    
+    // Failed SC
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(29, 0xA0010000);  // Init Stack pointer
+    cpu0->setRegister(8, 0xDEADBEEF);   // $t0 = 0xDEADBEEF
+    memory->storeWordPhys(0xA0000000, 0xe3a80000);          // sc $t0, 0($sp)
+    ASSERT_EQUAL(false, memory->getFrameBool(0xA0010000));  // reset() should be clearing this bit every time.
+    cpu0->setLLBit(true);                                   // Begin RWM sequence (normally set by LL instruction)
+    cpu0->setLLPFN(0xA0010);
+    memory->storeWordPhys(0xA0010000, 0xBEEFDEAD);          // Frame is now dirty
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0x0u, cpu0->getRegister(8));   // Failure
+    ASSERT_EQUAL(true, cpu0->getLLBit());       // RWM sequence not ended
+    word = 0;
+    memory->readWordPhys(0xA0010000, &word);
+    ASSERT_EQUAL(0xBEEFDEADu, word);    // Should remain unmodified
 }
 
 // TODO: This and LH are the same test

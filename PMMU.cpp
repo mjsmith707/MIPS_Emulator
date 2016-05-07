@@ -14,6 +14,7 @@ PMMU::PMMU(size_t ramSize) {
     frameTableRamLimit = ramSize;
     for (size_t i=0; i<frameTableMax; i++) {
         frameTable[i] = nullptr;
+        frameBoolTable[i] = false;
     }
     frameTableSize = 0;
     mmioAddressTableSize = 0;
@@ -35,6 +36,7 @@ PMMU::~PMMU() {
             delete[] frameTable[i];
             frameTable[i] = nullptr;
         }
+        frameBoolTable[i] = false;
     }
     // Invalidate all TLB entries
     for (size_t i=0; i<MAXCPUS; i++) {
@@ -49,6 +51,7 @@ PMMU::~PMMU() {
 size_t PMMU::frameTableSize;
 size_t PMMU::frameTableRamLimit;
 uint8_t* PMMU::frameTable[frameTableMax];
+bool PMMU::frameBoolTable[frameTableMax];
 uint32_t PMMU::mmioAddressTable[MMIOADDRESSTABLEMAX];
 uint32_t PMMU::mmioAddressTableSize;
 MMIO_Device* PMMU::mmioDeviceTable[MMIOADDRESSTABLEMAX];

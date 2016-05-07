@@ -27,6 +27,7 @@ class PMMU {
         static const size_t frameTableMax = 0x100000;
         static size_t frameTableRamLimit;
         static uint8_t* frameTable[frameTableMax];
+        static bool frameBoolTable[frameTableMax];
     
         // Memory-Mapped IO
         // Quick linear table to check for mapped addresses
@@ -294,10 +295,16 @@ class PMMU {
     
         // Retrieves the pointer to the frame block from a physical address
         // otherwise creates a new physical frame entry
-        inline static uint8_t* getFramePointer(uint32_t paddr) {
+        // Store will invalidate an atomic boolean (for LL/SC) if it is set
+        inline static uint8_t* getFramePointer(uint32_t paddr, bool store) {
             // Get the frame pointer
             paddr = (paddr&0xFFFFF000) >> 12;
             uint8_t* frame = frameTable[paddr];
+            
+            // Update frame's LLbit
+            bool temp1 = frameBoolTable[paddr];
+            frameBoolTable[paddr] |= store;
+            bool temp2 = frameBoolTable[paddr];
             
             if (frame == nullptr) {
                 // Check if out of memory
@@ -398,7 +405,7 @@ class PMMU {
         inline static void readWordIF(uint32_t vaddr, uint32_t* word, uint8_t cpunum, Coprocessor0* cop0) {
             checkWordAlignmentIF(vaddr);
             translateVaddrIF(&vaddr, cpunum, cop0);
-            uint32_t* frame = (uint32_t*)getFramePointer(vaddr);
+            uint32_t* frame = (uint32_t*)getFramePointer(vaddr, false);
             vaddr &= 0x00000FFF;
             frame += vaddr >> 2;
             *word = *frame;
@@ -420,7 +427,7 @@ class PMMU {
             }
             
             // No MMIO Device found so retrieve from memory
-            uint8_t* frame = getFramePointer(vaddr);
+            uint8_t* frame = getFramePointer(vaddr, false);
             vaddr &= 0x00000FFF;
             
             *byte = frame[vaddr];
@@ -443,7 +450,7 @@ class PMMU {
             }
             
             // No MMIO Device found so retrieve from memory
-            uint8_t* frame = getFramePointer(vaddr);
+            uint8_t* frame = getFramePointer(vaddr, false);
             vaddr &= 0x00000FFF;
             
             *half = frame[vaddr];
@@ -478,7 +485,7 @@ class PMMU {
                 *half = device1->readByte(vaddr1);
             }
             else {
-                uint8_t* frame1 = getFramePointer(vaddr1);
+                uint8_t* frame1 = getFramePointer(vaddr1, false);
                 vaddr1 &= 0x00000FFF;
                 *half = frame1[vaddr1];
             }
@@ -488,7 +495,7 @@ class PMMU {
                 *half |= device2->readByte(vaddr2);
             }
             else {
-                uint8_t* frame2 = getFramePointer(vaddr2);
+                uint8_t* frame2 = getFramePointer(vaddr2, false);
                 vaddr2 &= 0x00000FFF;
                 *half <<= 8;
                 *half |= frame2[vaddr2];
@@ -516,7 +523,7 @@ class PMMU {
             }
             
             // No MMIO Device found so retrieve from memory
-            uint8_t* frame = getFramePointer(vaddr);
+            uint8_t* frame = getFramePointer(vaddr, false);
             vaddr &= 0x00000FFF;
             
             *word = frame[vaddr];
@@ -527,7 +534,45 @@ class PMMU {
             *word <<= 8;
             *word |= frame[vaddr+3];
         }
-        
+    
+        // Read a word and start RWM sequence (LL)
+        inline static void readWordLL(uint32_t vaddr, uint32_t* word, uint8_t cpunum, Coprocessor0* cop0) {
+            checkWordAlignmentData(vaddr);
+            translateVaddrData(&vaddr, cpunum, cop0, false);
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
+                    // Found device, the RWM sequence will fail (see storeWordSC).
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    *word = device->readByte(vaddr);
+                    *word <<= 8;
+                    *word |= device->readByte(vaddr+1);
+                    *word <<= 8;
+                    *word |= device->readByte(vaddr+2);
+                    *word <<= 8;
+                    *word |= device->readByte(vaddr+3);
+                    return;
+                }
+            }
+            
+            // No MMIO Device found so retrieve from memory
+            // Get Frame Pointer
+            uint8_t* frame = getFramePointer(vaddr, false);
+            
+            // Begin RWM sequence on this frame
+            frameBoolTable[(vaddr&0xFFFFF000) >> 12] = false;
+            
+            vaddr &= 0x00000FFF;
+            
+            *word = frame[vaddr];
+            *word <<= 8;
+            *word |= frame[vaddr+1];
+            *word <<= 8;
+            *word |= frame[vaddr+2];
+            *word <<= 8;
+            *word |= frame[vaddr+3];
+        }
+    
         // Memory writing
         // Store a byte
         inline static void storeByte(uint32_t vaddr, uint8_t value, uint8_t cpunum, Coprocessor0* cop0) {
@@ -543,7 +588,7 @@ class PMMU {
             }
             
             // No MMIO Device found so save to memory
-            uint8_t* frame = getFramePointer(vaddr);
+            uint8_t* frame = getFramePointer(vaddr, true);
             vaddr &= 0x00000FFF;
             
             frame[vaddr] = value;
@@ -565,7 +610,7 @@ class PMMU {
                 }
                 
             // No MMIO Device found so save to memory
-            uint8_t* frame = getFramePointer(vaddr);
+            uint8_t* frame = getFramePointer(vaddr, true);
             vaddr &= 0x00000FFF;
             
             frame[vaddr] = value >> 8;
@@ -598,7 +643,7 @@ class PMMU {
                 device1->storeByte(vaddr1, value >> 8);
             }
             else {
-                uint8_t* frame1 = getFramePointer(vaddr1);
+                uint8_t* frame1 = getFramePointer(vaddr1, true);
                 vaddr1 &= 0x00000FFF;
                 frame1[vaddr1] = value >> 8;
             }
@@ -607,7 +652,7 @@ class PMMU {
                 device2->storeByte(vaddr2, value);
             }
             else {
-                uint8_t* frame2 = getFramePointer(vaddr2);
+                uint8_t* frame2 = getFramePointer(vaddr2, true);
                 vaddr2 &= 0x00000FFF;
                 frame2[vaddr2] = value;
             }
@@ -632,13 +677,56 @@ class PMMU {
             }
             
             // No MMIO Device found so save to memory
-            uint8_t* frame = getFramePointer(vaddr);
+            uint8_t* frame = getFramePointer(vaddr, true);
             vaddr &= 0x00000FFF;
             
             frame[vaddr] = value >> 24;
             frame[vaddr+1] = value >> 16;
             frame[vaddr+2] = value >> 8;
             frame[vaddr+3] = value;
+        }
+    
+        // Conditionally stores a word and returns success or failure (SC)
+        inline static bool storeWordSC(uint32_t vaddr, uint32_t value, uint8_t cpunum, Coprocessor0* cop0) {
+            checkWordAlignmentData(vaddr);
+            translateVaddrData(&vaddr, cpunum, cop0, true);
+            // Check if MMIO device holds address
+            for (uint32_t i=0; i+1<mmioAddressTableSize; i+=2) {
+                if ((vaddr >= mmioAddressTable[i]) && (vaddr <= mmioAddressTable[i+1])) {
+                    // Found device
+                    MMIO_Device* device = mmioDeviceTable[i];
+                    device->storeByte(vaddr, value >> 24);
+                    device->storeByte(vaddr+1, value >> 16);
+                    device->storeByte(vaddr+2, value >> 8);
+                    device->storeByte(vaddr+3, value);
+                    // FIXME: Implementation dependent on whether such devices are sychronizable in such fashion
+                    // so for now, no.
+                    return false;
+                }
+            }
+            
+            // Check if frame was modified
+            // Note we're passing in a false for the store reference here!
+            // This guarantees that the frame isn't NULL.
+            uint8_t* frame = getFramePointer(vaddr, false);
+            
+            // Get bool value
+            // If dirty bit is set then fail
+            if (frameBoolTable[(vaddr&0xFFFFF000) >> 12]) {
+                return false;
+            }
+            // Otherwise modify and report success
+            else {
+                frameBoolTable[(vaddr&0xFFFFF000) >> 12] = true;
+                vaddr &= 0x00000FFF;
+                
+                frame[vaddr] = value >> 24;
+                frame[vaddr+1] = value >> 16;
+                frame[vaddr+2] = value >> 8;
+                frame[vaddr+3] = value;
+                
+                return true;
+            }
         }
     
        /*
@@ -781,7 +869,7 @@ class PMMU {
             }
             
             // No MMIO Device found so retrieve from memory
-            uint8_t* frame = getFramePointer(paddr);
+            uint8_t* frame = getFramePointer(paddr, false);
             paddr &= 0x00000FFF;
             
             *byte = frame[paddr];
@@ -803,7 +891,7 @@ class PMMU {
             }
             
             // No MMIO Device found so retrieve from memory
-            uint8_t* frame = getFramePointer(paddr);
+            uint8_t* frame = getFramePointer(paddr, false);
             paddr &= 0x00000FFF;
             
             *half = frame[paddr];
@@ -838,7 +926,7 @@ class PMMU {
                 *half = device1->readByte(paddr1);
             }
             else {
-                uint8_t* frame1 = getFramePointer(paddr1);
+                uint8_t* frame1 = getFramePointer(paddr1, false);
                 paddr1 &= 0x00000FFF;
                 *half = frame1[paddr1];
             }
@@ -848,7 +936,7 @@ class PMMU {
                 *half |= device2->readByte(paddr2);
             }
             else {
-                uint8_t* frame2 = getFramePointer(paddr2);
+                uint8_t* frame2 = getFramePointer(paddr2, false);
                 paddr2 &= 0x00000FFF;
                 *half <<= 8;
                 *half |= frame2[paddr2];
@@ -875,7 +963,7 @@ class PMMU {
             }
             
             // No MMIO Device found so retrieve from memory
-            uint8_t* frame = getFramePointer(paddr);
+            uint8_t* frame = getFramePointer(paddr, false);
             paddr &= 0x00000FFF;
             
             *word = frame[paddr];
@@ -902,7 +990,7 @@ class PMMU {
             }
             
             // No MMIO Device found so save to memory
-            uint8_t* frame = getFramePointer(paddr);
+            uint8_t* frame = getFramePointer(paddr, true);
             paddr &= 0x00000FFF;
             
             frame[paddr] = value;
@@ -923,7 +1011,7 @@ class PMMU {
             }
             
             // No MMIO Device found so save to memory
-            uint8_t* frame = getFramePointer(paddr);
+            uint8_t* frame = getFramePointer(paddr, true);
             paddr &= 0x00000FFF;
             
             frame[paddr] = value >> 8;
@@ -956,7 +1044,7 @@ class PMMU {
                 device1->storeByte(paddr1, value >> 8);
             }
             else {
-                uint8_t* frame1 = getFramePointer(paddr1);
+                uint8_t* frame1 = getFramePointer(paddr1, true);
                 paddr1 &= 0x00000FFF;
                 frame1[paddr1] = value >> 8;
             }
@@ -965,7 +1053,7 @@ class PMMU {
                 device2->storeByte(paddr2, value);
             }
             else {
-                uint8_t* frame2 = getFramePointer(paddr2);
+                uint8_t* frame2 = getFramePointer(paddr2, true);
                 paddr2 &= 0x00000FFF;
                 frame2[paddr2] = value;
             }
@@ -989,7 +1077,7 @@ class PMMU {
             }
             
             // No MMIO Device found so save to memory
-            uint8_t* frame = getFramePointer(paddr);
+            uint8_t* frame = getFramePointer(paddr, true);
             paddr &= 0x00000FFF;
             
             frame[paddr] = value >> 24;
@@ -1009,6 +1097,10 @@ class PMMU {
             }
             
             return TLBTable[cpunum][i];
+        }
+        static bool getFrameBool(uint32_t paddr) {
+            translateVaddrPhys(&paddr);
+            return frameBoolTable[(paddr&0xFFFFF000) >> 12];
         }
     #endif
 };
