@@ -86,13 +86,13 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(uint8_t cpuNum, ConsoleUI* conUI, PMMU* memory) : CPUNUM(cpuNum), consoleUI(conUI), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
+CPU::CPU(uint8_t cpuNum, ConsoleUI* conUI, PMMU* memory) : CPUNUM(cpuNum), consoleUI(conUI), memory(memory), cycleCounter(0), signal(CONTINUE), singleStep(false), LLBit(false), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
 
-CPU::CPU(uint8_t cpuNum, PMMU* memory) : CPUNUM(cpuNum), consoleUI(nullptr), memory(memory), cycleCounter(0), signal(0), LLBit(false), exceptRestartLoop(false) {
+CPU::CPU(uint8_t cpuNum, PMMU* memory) : CPUNUM(cpuNum), consoleUI(nullptr), memory(memory), cycleCounter(0), signal(CONTINUE), singleStep(false), LLBit(false), exceptRestartLoop(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
@@ -103,6 +103,10 @@ void CPU::setPC(uint32_t addr) {
     PC = addr;
 }
 
+void CPU::setRegister(uint8_t num, uint32_t val) {
+    this->registers[num] = val;
+}
+
 // Public starting function for the CPU
 void CPU::start() {
     dispatchLoop();
@@ -110,14 +114,6 @@ void CPU::start() {
 
 // Public function to signal the cpu thread
 bool CPU::sendInterrupt(MIPSInterrupt interrupt) {
-    // Nonmaskable Interrupts/Thread signaling
-    if (interrupt == MIPSInterrupt::HALT) {
-        // Assert all interrupt lines
-        cop0.orRegisterHW(CO0_CAUSE, CAUSE_RIPL);
-        signal = static_cast<uint8_t>(interrupt);
-        return true;
-    }
-    
     // Check if interrupts enabled
     // Status_ie = 1, Status_exl = 0, Status_erl = 0
     if (!cop0.interruptsEnabled()) {
@@ -216,10 +212,6 @@ void CPU::clearInterrupt(MIPSInterrupt interrupt) {
             cop0.andRegisterHW(CO0_CAUSE, ~CAUSE_IP7);
             break;
         }
-        case MIPSInterrupt::HALT: {
-            signal = 0;
-            break;
-        }
         default: {
             throw std::runtime_error("Invalid hardware interrupt number specified");
         }
@@ -292,9 +284,6 @@ void CPU::setHI(uint32_t val) {
 }
 void CPU::setLO(uint32_t val) {
     this->LO = val;
-}
-void CPU::setRegister(uint8_t num, uint32_t val) {
-    this->registers[num] = val;
 }
 void CPU::setOpcode(uint8_t val) {
     this->opcode = val;
@@ -418,9 +407,26 @@ std::string CPU::debugPrint() {
             break;
         }
     }
-    ss << "=== END Disassembly ===" << std::endl << std::endl;
+    ss << "=== END Disassembly ===" << std::endl;
     return ss.str();
 }
+
+// Prints out GPR information
+std::string CPU::printRegisters() {
+    std::stringstream ss;
+    for (uint32_t i=0; i<32; i++) {
+        ss << registerNames[i] << " (" << std::dec << i << ") 0x" << std::hex << registers[i] << std::endl;
+    }
+    ss << std::hex << "HI 0x" << HI << std::endl;
+    ss << std::hex << "LO 0x" << LO << std::endl;
+    return ss.str();
+}
+
+// Check if a thread signal was received
+#define checkSignal() \
+    if (signal > 0) { \
+        goto HANDLE_SIGNAL; \
+    } \
 
 // Checks if there is a pending interrupt
 // If so then do some further processing
@@ -2229,15 +2235,68 @@ dispatchStart:
 /*
  * === END COP0 CO ===
  */
+
+/*
+ * === Miscellaneous ===
+ */
+    // Handles thread signal reception
+    // This will dispatch to specific
+    // signal handlers
+    HANDLE_SIGNAL:
+        switch (signal) {
+            case BREAKPTACTIVE: {
+                goto BREAKPTACTIVE;
+            }
+            case PAUSE: {
+                goto PAUSE;
+            }
+            case HALT: {
+                goto CPU_HALT;
+            }
+            case STEP: {
+                goto STEP;
+            }
+            case CONTINUE: {
+            default:
+                goto CONTINUE;
+            }
+        }
     
-    // Miscellaneous
+    // Handles single stepping
+    // Basically continue once and pause
+    // on next fetch.
+    STEP:
+        signal = PAUSE;
+        goto CONTINUE;
+        
+    // Handles breakpointing
+    // Just polls the current PC
+    // otherwise continues.
+    BREAKPTACTIVE:
+        if (PC == breakpointTarget) {
+            signal = PAUSE;
+            goto PAUSE;
+        }
+        else {
+            goto CONTINUE;
+        }
+        
+    // Waits for external thread signaling
+    PAUSE:
+        // Wait for signal to change
+        while (signal == PAUSE) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        goto HANDLE_SIGNAL;
+        
+    // Resumes execution after handling a thread signal event
+    CONTINUE:
+        // Continue execution
+        checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        
     // Jumped to from dispatch() upon the detection of an interrupt request
     HANDLE_INTERRUPT:
-        if (signal == MIPSInterrupt::HALT) {
-            goto CPU_HALT;
-        }
-        // Interrupts Enabled?
-        else if ((cop0.getRegister(CO0_STATUS) & STATUS_INTS) == 0x1) {
+        if ((cop0.getRegister(CO0_STATUS) & STATUS_INTS) == 0x1) {
             serviceInterrupt();
         }
         // If we reached here then an interrupt was not taken so continue
@@ -2245,6 +2304,7 @@ dispatchStart:
         fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
     // End HANDLE_INTERRUPT
     
+    // Triggered when a reserved instruction is decoded
     RESERVED_INSTRUCTION:
         if (consoleUI != nullptr) {
             consoleUI->sendConsoleMsg("Reserved Instruction!");
@@ -2252,25 +2312,34 @@ dispatchStart:
         }
         throw ReservedInstructionException();
     
+    // Triggered when an unimplemented opcode is decoded
     UNIMPLEMENTED_INSTRUCTION:
         if (consoleUI != nullptr) {
             consoleUI->sendConsoleMsg("ERROR: Unimplemented instruction!");
             consoleUI->sendConsoleMsg(debugPrint());
         }
-        return;
+        // This is a good point to pause and break into the debugger
+        signal = PAUSE;
+        goto HANDLE_SIGNAL;
     
+    // More or less the only way out of dispatchLoop()
     CPU_HALT:
         if (consoleUI != nullptr) {
-            consoleUI->sendConsoleMsg("CPU Halted.");
-            std::cout << debugPrint() << std::endl;
+            std::string msg = std::to_string(cycleCounter);
+            msg += " CPU Halted.";
+            consoleUI->sendConsoleMsg(msg);
         }
         return;
         
     #ifdef TEST_PROJECT
+    // Throws an exception based on jump immediate value
     TRIGGER_EXCEPTION:
         executeException();
     #endif
         
+/*
+ * === END Miscellaneous ===
+ */
     }
     // Multi-catch for in processor interrupts
     // exceptions and simulation errors
@@ -2354,4 +2423,19 @@ void CPU::serviceInterrupt() {
         lastReceivedInt = MIPSInterrupt::SW0;
         throw InterruptException();
     }
+}
+
+// Sets a breakpoint target
+void CPU::setBreakpoint(uint32_t addr) {
+    breakpointTarget = addr;
+}
+
+// Sends a signal to the CPU thread
+void CPU::sendThreadSignal(CPUSignal sig) {
+    signal = sig;
+}
+
+// Gets the current thread state
+CPU::CPUSignal CPU::getThreadSignal() {
+    return this->signal;
 }

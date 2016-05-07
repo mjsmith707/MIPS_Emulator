@@ -11,8 +11,12 @@
 
 #include <thread>
 #include <curses.h>
+#include <cstdlib>
 #include "SharedQueue.h"
 #include "UART8250.h"
+#include "PMMU.h"
+
+class CPU;  // Forward reference
 
 // Handles stdin/stdout reading/writing
 // Todo: Split waitForInput() into separate functions
@@ -21,18 +25,36 @@
 // Separate ncurses windows for uart, debug messages, etc.
 class ConsoleUI {
     private:
+        // CPU Pointer
+        CPU* cpu;
+    
+        // Memory Pointer
+        PMMU* memory;
+    
         // Serial UART pointer
         UART8250* uart;
     
         // Lock protected queue for sending messages for logging etc.
         Shared_Queue<std::string> msgQueue;
     
+        // Breakpoint target (if any)
+        bool breakpointActive;
+        bool singleStepActive;
+        uint32_t breakpointAddr;
+    
         // Helper functions
         void checkScrollBounds();
+        bool commandMenu();
     
     public:
         // CTOR
         ConsoleUI(UART8250*);
+    
+        // Attaches CPU to ConsoleUI
+        void attachCPU(CPU*);
+    
+        // Attaches Memory to ConsoleUI
+        void attachMemory(PMMU*);
     
         // Polling IO loop
         void waitForInput();

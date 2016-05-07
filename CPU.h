@@ -35,7 +35,15 @@ class CPU {
         HW3 = 5,
         HW4 = 6,
         HW5 = 7,
-        HALT = 8,
+    };
+    
+    // Thread signaling Definitions
+    enum CPUSignal {
+        CONTINUE = 0,
+        BREAKPTACTIVE = 1,
+        PAUSE = 2,
+        STEP = 3,
+        HALT = 4
     };
     
     private:
@@ -77,7 +85,7 @@ class CPU {
         #ifdef TEST_PROJECT
             #define DISPATCH() return;
         #else
-            #define DISPATCH() updateISARep() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+            #define DISPATCH() updateISARep() checkSignal() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
         #endif
     
         // CPU Number
@@ -102,8 +110,8 @@ class CPU {
         // Cycle counter
         uint64_t cycleCounter;
     
-        // Very temporary thread signal
-        volatile uint8_t signal;
+        // Thread signaling variable
+        volatile CPUSignal signal;
     
         // Program Counter and Instruction Register
         uint32_t PC;
@@ -150,6 +158,10 @@ class CPU {
         // Set by an interruptexception()
         // Cleared by eret (which will update CAUSE properly)
         MIPSInterrupt lastReceivedInt;
+    
+        // Breakpoint related
+        volatile bool singleStep;
+        volatile uint32_t breakpointTarget;
     
         // String tables for readable instruction decoding
         static const char* opcodeNames[64];
@@ -207,9 +219,6 @@ class CPU {
         friend class BusErrorDataException;
         friend class InterruptException;
     
-        // Prints out cpu and instruction information
-        std::string debugPrint();
-    
     public:
         CPU(uint8_t cpuNum, ConsoleUI* conui, PMMU* memory);
         CPU(uint8_t cpuNum, PMMU* memory);
@@ -217,12 +226,31 @@ class CPU {
         // Sets the program counter to an address
         void setPC(uint32_t addr);
     
+        // Sets a register to a value
+        void setRegister(uint8_t, uint32_t);
+    
+        // Sets a breakpoint target
+        void setBreakpoint(uint32_t);
+    
         // Begins CPU Execution
         void start();
     
-        // Sends a signal to the CPU
+        // Sends an interrupt to the CPU
         bool sendInterrupt(MIPSInterrupt);
+        // Clears an interrupt from the CPU
         void clearInterrupt(MIPSInterrupt);
+    
+        // Sends a signal to the CPU thread
+        void sendThreadSignal(CPUSignal);
+    
+        // Gets the current thread state
+        CPUSignal getThreadSignal();
+    
+        // Prints out cpu and instruction information
+        std::string debugPrint();
+    
+        // Prints out GPR information
+        std::string printRegisters();
     
         // Gets the coprocessor0 object bound to this cpu
         Coprocessor0* getControlCoprocessor();
@@ -249,7 +277,6 @@ class CPU {
         void setIR(uint32_t);
         void setHI(uint32_t);
         void setLO(uint32_t);
-        void setRegister(uint8_t, uint32_t);
         void setOpcode(uint8_t);
         void setRS(uint8_t);
         void setRT(uint8_t);

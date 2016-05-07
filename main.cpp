@@ -20,7 +20,7 @@
 
 void loadRaw(ConsoleUI*, const char*, PMMU*, CPU*);
 void loadFile(ConsoleUI*, const char*, PMMU*, CPU*);
-void waitForInput(UART8250* uart);
+void setBootArgs(ConsoleUI*, const char*, PMMU*, CPU*);
 
 int main(int argc, const char * argv[]) {
     if (argc != 2) {
@@ -43,21 +43,27 @@ int main(int argc, const char * argv[]) {
     
     // Create cpu
     CPU* cpu0 = new CPU(0, consoleUI, memory);
+    cpu0->sendThreadSignal(CPU::PAUSE);
+    // Attach cpu to ConsoleUI
+    consoleUI->attachCPU(cpu0);
+    
+    // Attach memory to ConsoleUI
+    consoleUI->attachMemory(memory);
     
     // Load binary
     //loadRaw(consoleUI, argv[1], memory, cpu0);
     loadFile(consoleUI, argv[1], memory, cpu0);
+    //setBootArgs(consoleUI, "console=ttyS0", memory, cpu0);
     //std::this_thread::sleep_for(std::chrono::seconds(15));
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
-    //std::this_thread::sleep_for(std::chrono::seconds(60));
     
     // Wait for console input
     consoleUI->waitForInput();
     
     // Stop CPU
-    cpu0->sendInterrupt(CPU::MIPSInterrupt::HALT);
+    
     cpu0_thread.join();
     
     // Cleanup
@@ -165,4 +171,24 @@ void loadFile(ConsoleUI* consoleUI, const char* filename, PMMU* memory, CPU* cpu
     }
     consoleUI->sendConsoleMsg(ss.str());
     //std::cout << ss.str() << std::endl;
+}
+
+// Very much a work in progress. I'm still not sure how Linux actually expects these arguments to be.
+void setBootArgs(ConsoleUI* consoleUI, const char* str, PMMU* memory, CPU* cpu) {
+    // Store in some low area of memory
+    uint32_t baseaddr = 0xA0001000;
+    uint32_t addr = baseaddr;
+    uint32_t count = 1;
+    while (*str) {
+        memory->storeBytePhys(addr, *str);
+        str++;
+        addr++;
+        if (*str == ' ') {
+            count++;
+        }
+    }
+    cpu->setRegister(4, count);
+    cpu->setRegister(5, baseaddr);
+    cpu->setRegister(6, 0);
+    cpu->setRegister(7, 0);
 }

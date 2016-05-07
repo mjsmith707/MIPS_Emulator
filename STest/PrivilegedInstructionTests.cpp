@@ -127,7 +127,7 @@ void MIPS_TLBP() {
     //  arch/mips/include/asm/mipsregs.h PM_4K
     // although Pagemask is locked to 0.
     // This is for bits 12..11 and only has an
-    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // effect if Config3_sp = 1 & PageGrain_esp = 1,
     // aka if support for 1KB pages exists.
     cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
     // EntryHI_vpn2 = 0x00400000
@@ -175,7 +175,7 @@ void MIPS_TLBR() {
     //  arch/mips/include/asm/mipsregs.h PM_4K
     // although Pagemask is locked to 0.
     // This is for bits 12..11 and only has an
-    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // effect if Config3_sp = 1 & PageGrain_esp = 1,
     // aka if support for 1KB pages exists.
     cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
     // EntryHI_vpn2 = 0x00400000
@@ -222,7 +222,7 @@ void MIPS_TLBWI() {
     //  arch/mips/include/asm/mipsregs.h PM_4K
     // although Pagemask is locked to 0.
     // This is for bits 12..11 and only has an
-    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // effect if Config3_sp = 1 & PageGrain_esp = 1,
     // aka if support for 1KB pages exists.
     cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
     // EntryHI_vpn2 = 0x00400000
@@ -277,7 +277,7 @@ void MIPS_TLBWR() {
     //  arch/mips/include/asm/mipsregs.h PM_4K
     // although Pagemask is locked to 0.
     // This is for bits 12..11 and only has an
-    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // effect if Config3_sp = 1 & PageGrain_esp = 1,
     // aka if support for 1KB pages exists.
     cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
     // EntryHI_vpn2 = 0x00400000
@@ -350,7 +350,7 @@ void TEST_VADDR_TRANSLATION() {
     //  arch/mips/include/asm/mipsregs.h PM_4K
     // although Pagemask is locked to 0.
     // This is for bits 12..11 and only has an
-    // affect if Config3_sp = 1 & PageGrain_esp = 1,
+    // effect if Config3_sp = 1 & PageGrain_esp = 1,
     // aka if support for 1KB pages exists.
     cop0->setRegisterHW(CO0_PAGEMASK, 0x1800);
     // EntryHI_vpn2 = 0x00400000
@@ -375,8 +375,8 @@ void TEST_VADDR_TRANSLATION() {
     memory->storeWordPhys(0xA0000000, 0x42000002); // tlbwi
     cpu0->stepCPU(1);
     
-    cpu0->setPC(0x00400000);
     // PFN 2000
+    cpu0->setPC(0x00400000);
     memory->storeWordPhys(0x02000000, 0x200200c8);   // addi	v0,zero,200
     memory->storeWordPhys(0x02000004, 0x200301f4);   // addi	v1,zero,500
     memory->storeWordPhys(0x02000008, 0x00432025);   // or a0,v0,v1
