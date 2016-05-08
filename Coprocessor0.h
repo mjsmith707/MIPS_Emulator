@@ -235,9 +235,6 @@ class Coprocessor0 {
         // Coprocessor Register File
         COP0Register* registerFile[32][32];
     
-        // Private thread count/compare loop
-        void countCompare(CPU* cpu);
-    
     public:
         Coprocessor0();
         ~Coprocessor0();
