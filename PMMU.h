@@ -302,9 +302,7 @@ class PMMU {
             uint8_t* frame = frameTable[paddr];
             
             // Update frame's LLbit
-            bool temp1 = frameBoolTable[paddr];
             frameBoolTable[paddr] |= store;
-            bool temp2 = frameBoolTable[paddr];
             
             if (frame == nullptr) {
                 // Check if out of memory

@@ -60,9 +60,9 @@ SaveRegsFull:
 writemsg:
     move $sp, $zero
     lui $sp, 0xBF00 	# init kernel stack pointer
-	la $a0, intmsg      # Load &intmsg
-	jal putline         # call putline(intmsg)
-	nop
+    la $a0, intmsg      # Load &intmsg
+    jal putline         # call putline(intmsg)
+    nop
 
 # Restore registers
 RestoreRegsFull:
@@ -88,13 +88,10 @@ RestoreRegsFull:
 
 # Return from interrupt
 intret:
-    mfc0 $k0, $13, 0    # Load Cause
-    lui $k1, 0xFFFF
-    ori $k1, 0x7FFF
-    and $k0, $k0, $k1
-    mtc0 $k0, $13, 0    # Clear IP7 bit
-
-	mtc0 $zero, $9, 0   # Clear Count Register
+    lui $k0, 0x0100
+    ori $k0, 0x0000
+    mtc0 $k0, $11, 0    # Clear Timer Compare = 0x01000000
+    mtc0 $zero, $9, 0	# Count = 0
     ei                  # Enable Interrupts
-	eret                # Exception Return
-	nop
+    eret                # Exception Return
+    nop

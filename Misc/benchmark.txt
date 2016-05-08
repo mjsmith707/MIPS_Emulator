@@ -7,3 +7,7 @@ experimental IF2  4891032818 inst/min 81517213 inst/sec
 experimental IF3  5522053097 inst/min 92034218 inst/sec
 experimental mmio 5626030034 inst/min 93767167 inst/sec
 cwolf/blue        9336974164 inst/min 155616236 inst/sec
+
+virtual memory     611006643 inst/min 10183444 inst/sec
+nonlocking count  1959688827 inst/min 32661480 inst/sec
+inlined cnt/comp  2434948173 inst/min 40582469 inst/sec

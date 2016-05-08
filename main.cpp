@@ -43,7 +43,10 @@ int main(int argc, const char * argv[]) {
     
     // Create cpu
     CPU* cpu0 = new CPU(0, consoleUI, memory);
+    
+    // Start paused
     cpu0->sendThreadSignal(CPU::PAUSE);
+    
     // Attach cpu to ConsoleUI
     consoleUI->attachCPU(cpu0);
     
@@ -51,10 +54,7 @@ int main(int argc, const char * argv[]) {
     consoleUI->attachMemory(memory);
     
     // Load binary
-    //loadRaw(consoleUI, argv[1], memory, cpu0);
     loadFile(consoleUI, argv[1], memory, cpu0);
-    //setBootArgs(consoleUI, "console=ttyS0", memory, cpu0);
-    //std::this_thread::sleep_for(std::chrono::seconds(15));
     
     // Start CPU
     std::thread cpu0_thread(std::bind(&CPU::start, cpu0));
@@ -63,7 +63,7 @@ int main(int argc, const char * argv[]) {
     consoleUI->waitForInput();
     
     // Stop CPU
-    
+    cpu0->sendThreadSignal(CPU::HALT);
     cpu0_thread.join();
     
     // Cleanup

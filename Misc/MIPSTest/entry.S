@@ -13,11 +13,11 @@ _start:
     nop
     di                  # Disable interrupts
     move $sp, $zero
-    lui $sp, 0x4FF4 	# init stack pointer
-
-    lui $t0, 0x000F
+    lui $sp, 0xAFFF 	# init stack pointer
+    ori $sp, 0x0000
+    lui $t0, 0x0100
     ori $t0, 0x0000
-    mtc0 $t0, $11, 0    # Compare = 0x000F0000
+    mtc0 $t0, $11, 0    # Compare = 0x01000000
     lui $t0, 0x8000
     ori $t0, 0x0000
     mtc0 $t0, $15, 1    # Ebase = 0x80000000
@@ -33,6 +33,7 @@ _start:
     ori $t1, 0x8000
     or $t0, $t0, $t1    # Set Status_im7
     mtc0 $t0, $12, 0	# Save Status
+    mtc0 $zero, $9, 0	# Count = 0
     ei                  # Enable interrupts
 
     jal main            # call main

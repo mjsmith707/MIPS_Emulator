@@ -9,7 +9,7 @@
 #include "Coprocessor0.h"
 #include "CPU.h"
 
-Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) {
+Coprocessor0::Coprocessor0() {
     // Seed RNG
     srand(time(NULL));
     
@@ -401,7 +401,6 @@ Coprocessor0::Coprocessor0() : countCompActive(false), countCompThread(nullptr) 
 
 // Destructor
 Coprocessor0::~Coprocessor0() {
-    stopCounter();
 }
 
 // Helper functions
@@ -514,55 +513,6 @@ void Coprocessor0::resetRegister(uint8_t regnum, uint8_t sel) {
         throw std::runtime_error("Invalid coprocessor register addressed!");
     }
     registerFile[regnum][sel]->resetRegister();
-}
-
-// Increments count and tests against compare
-// Triggers interrupt on count==compare
-void Coprocessor0::countCompare(CPU* cpu) {
-    for (;;) {
-        if (!countCompActive) {
-            return;
-        }
-        
-        // Increment Count Register
-        registerFile[9][0]->addValue(1, true);
-        
-        // Compare Count and Compare Registers
-        // Only if compare != 0
-        if ((registerFile[11][0]->getValue() != 0) && (registerFile[9][0]->getValue() == registerFile[11][0]->getValue())) {
-            // Set Cause_ti
-            registerFile[13][0]->orValue(CAUSE_TI, true);
-            // Trigger HW5 interrupt
-            cpu->sendInterrupt(CPU::MIPSInterrupt::HW5);
-        }
-        
-        // FIXME: Needs to be set to some fraction of the cpu clock
-        std::this_thread::sleep_for(std::chrono::nanoseconds(50));
-    }
-}
-
-// Starts Count/Compare counter
-void Coprocessor0::startCounter(CPU* cpu) {
-    if (cpu == nullptr) {
-        throw std::runtime_error("Got nullptr in cop0::startCounter");
-    }
-    
-    // Stop counter if running
-    stopCounter();
-    
-    // Start counter thread
-    countCompActive = true;
-    countCompThread = new std::thread(std::bind(&Coprocessor0::countCompare, this, cpu));
-}
-
-// Stops Count/Compare counter and thread
-void Coprocessor0::stopCounter() {
-    countCompActive = false;
-    if (countCompThread != nullptr) {
-        countCompThread->join();
-        delete countCompThread;
-        countCompThread = nullptr;
-    }
 }
 
 // Called by CPU or Coprocessor to update Random Register

@@ -85,7 +85,7 @@ class CPU {
         #ifdef TEST_PROJECT
             #define DISPATCH() return;
         #else
-            #define DISPATCH() updateISARep() checkSignal() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+            #define DISPATCH() updateISARep() checkSignal() checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
         #endif
     
         // CPU Number
@@ -109,6 +109,10 @@ class CPU {
     
         // Cycle counter
         uint64_t cycleCounter;
+    
+        // Shadow copies of count/compare
+        uint32_t count;
+        uint32_t compare;
     
         // Thread signaling variable
         volatile CPUSignal signal;

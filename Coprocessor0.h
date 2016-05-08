@@ -235,12 +235,6 @@ class Coprocessor0 {
         // Coprocessor Register File
         COP0Register* registerFile[32][32];
     
-        // Atomic bool for controlling count/compare loop
-        std::atomic<bool> countCompActive;
-    
-        // Count Compare Thread
-        std::thread* countCompThread;
-    
         // Private thread count/compare loop
         void countCompare(CPU* cpu);
     
@@ -279,10 +273,6 @@ class Coprocessor0 {
     
         // Resets a register to its original startup state atomically
         void resetRegister(uint8_t regnum, uint8_t sel);
-    
-        // Called by CPU to start and stop the count/compare registers
-        void startCounter(CPU* cpu);
-        void stopCounter();
     
         // Called by CPU to update Random Register
         void updateRandom();

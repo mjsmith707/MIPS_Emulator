@@ -86,13 +86,15 @@ const char* CPU::registerNames[32] {
 
 // Parameterized Constructor
 // Attaches the CPU to other devices
-CPU::CPU(uint8_t cpuNum, ConsoleUI* conUI, PMMU* memory) : CPUNUM(cpuNum), consoleUI(conUI), memory(memory), cycleCounter(0), signal(CONTINUE), singleStep(false), LLBit(false), exceptRestartLoop(false) {
+CPU::CPU(uint8_t cpuNum, ConsoleUI* conUI, PMMU* memory) : CPUNUM(cpuNum), consoleUI(conUI), memory(memory),
+    cycleCounter(0), count(0), compare(0), signal(CONTINUE), LLBit(false), exceptRestartLoop(false), singleStep(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
 
-CPU::CPU(uint8_t cpuNum, PMMU* memory) : CPUNUM(cpuNum), consoleUI(nullptr), memory(memory), cycleCounter(0), signal(CONTINUE), singleStep(false), LLBit(false), exceptRestartLoop(false) {
+CPU::CPU(uint8_t cpuNum, PMMU* memory) : CPUNUM(cpuNum), consoleUI(nullptr), memory(memory),
+    cycleCounter(0), count(0), compare(0), signal(CONTINUE), LLBit(false), exceptRestartLoop(false), singleStep(false) {
     for (int i=0; i<32; i++) {
         registers[i] = 0;
     }
@@ -370,6 +372,8 @@ std::string CPU::debugPrint() {
     std::stringstream ss;
     ss << "=== Decode ===" << std::endl
     << "Cycle = " << std::dec << cycleCounter << std::endl
+    << "Count = " << std::dec << count << std::endl
+    << "Compare = " << std::dec << compare << std::endl
     << std::hex << "PC = 0x" << PC-4 << std::endl
     << "IR = 0x" << IR << std::endl
     << "opcode = 0x" << (uint16_t)opcode << std::endl << std::dec
@@ -450,8 +454,15 @@ std::string CPU::printRegisters() {
 // Does some processing to ensure the ISA representation remains consistent to software (e.g. r0 = 0)
 #define updateISARep()  \
     cycleCounter++; \
-\
+    count++; \
     registers[0] = 0; \
+
+// Checks if count == compare and then jumps into the handler for it
+// Turned out to be far far faster than calling cop0 every iteration
+#define checkCountComp() \
+    if (count == compare) { \
+        goto HANDLE_COUNT; \
+    } \
 
 // Fetches the next instruction into the program counter and instruction register
 #define fetch()  \
@@ -468,6 +479,16 @@ std::string CPU::printRegisters() {
         branch = true; \
     } \
 
+// Stores current count into cop0 count register
+// Proceeding a mfc0
+#define updateCount() \
+    cop0.setRegisterHW(9,0,count); \
+
+// Synchronizes local count/compare with cop0 count/compare
+// Following a mtc0
+#define updateCountCompare() \
+    count = cop0.getRegister(9,0); \
+    compare = cop0.getRegister(11,0); \
 
 // Decodes all information from the instruction
 // Mainly for debugging
@@ -866,15 +887,13 @@ void CPU::dispatchLoop() {
     };
     
     // Begin Dispatch Loop
-    // Start Count/Compare timer
-    cop0.startCounter(this);
     
 dispatchStart:
     try {
         exceptRestartLoop = false;
         
     #ifdef TEST_PROJECT
-        updateISARep() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        updateISARep() checkSignal() checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
     #else
         DISPATCH();
     #endif
@@ -2171,6 +2190,7 @@ dispatchStart:
         DECODE_SEL();
         DECODE_RT();
         DECODE_RD();
+        updateCount();  // Store current count
         registers[rt] = cop0.getRegisterSW(rd, sel);
         DISPATCH();
     
@@ -2179,7 +2199,9 @@ dispatchStart:
         DECODE_SEL();
         DECODE_RT();
         DECODE_RD();
+        updateCount();  // Store current count
         cop0.setRegisterSW(rd, sel, registers[rt]);
+        updateCountCompare(); // Retrieve potential new count/compare
         DISPATCH();
     
     // 0x0B
@@ -2314,6 +2336,19 @@ dispatchStart:
         
     // Resumes execution after handling a thread signal event
     CONTINUE:
+        // Continue execution
+        checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        
+    // Handles count/compare logic
+    // This is only entered when count==compare
+    HANDLE_COUNT:
+        // Check if count/compare timer is disabled
+        if ((cop0.getRegister(CO0_CAUSE) & CAUSE_DC) == 0) {
+            // Set Cause_ti
+            cop0.orRegisterHW(CO0_CAUSE, CAUSE_TI);
+            // Trigger HW5 interrupt
+            sendInterrupt(CPU::MIPSInterrupt::HW5);
+        }
         // Continue execution
         checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
         
