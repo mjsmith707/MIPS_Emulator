@@ -44,6 +44,7 @@ class ConsoleUI {
     
         // Helper functions
         void checkScrollBounds();
+        void checkMessages();
         bool commandMenu();
     
     public:

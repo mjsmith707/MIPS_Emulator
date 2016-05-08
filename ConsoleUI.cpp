@@ -25,6 +25,7 @@ void ConsoleUI::waitForInput() {
     scrollok(stdscr, TRUE);
     idlok(stdscr, TRUE);
     
+    checkMessages();
     bool running = commandMenu();
     // Blocking input/output loop
     while (running) {
@@ -64,7 +65,10 @@ void ConsoleUI::waitForInput() {
         
         // Check if breakpoint is active and reached
         if (breakpointActive && (cpu->getThreadSignal() == CPU::PAUSE)) {
-            printw("LOM> Breakpoint %#010x reached.", breakpointAddr);
+            if (!singleStepActive) {
+                printw("LOM> Breakpoint %#010x reached.", breakpointAddr);
+            }
+            
             breakpointActive = false;
             if (singleStepActive) {
                 printw("\n%s", cpu->debugPrint().c_str());
@@ -74,28 +78,14 @@ void ConsoleUI::waitForInput() {
             running = commandMenu();
         }
         
-        // Check if message is available from queue
-        size_t count = 0;
-        while ((count < 20) && (!msgQueue.isEmpty())) {
-            // This will need to be split into a new window at some point but for now it will have to do
-            std::string msg = msgQueue.pop();
-            printw("LOM> %s\n", msg.c_str());
-            refresh();
-            count++;
-        }
+        checkMessages();
     }
     
     // Halt CPU
     cpu->sendThreadSignal(CPU::HALT);
     std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Should be long enough for the thread to respond.
     
-    // Check if message is available from queue
-    while (!msgQueue.isEmpty()) {
-        // This will need to be split into a new window at some point but for now it will have to do
-        std::string msg = msgQueue.pop();
-        printw("LOM> %s\n", msg.c_str());
-        refresh();
-    }
+    checkMessages();
     
     // Leaving
     printw("Press any key to quit.");
@@ -119,6 +109,20 @@ void ConsoleUI::checkScrollBounds() {
     }
     else {
         wmove(stdscr, y+1, x);
+    }
+}
+
+// Checks message queue
+// Doesn't print all to avoid flooding
+void ConsoleUI::checkMessages() {
+    // Check if message is available from queue
+    size_t count = 0;
+    while ((count < 20) && (!msgQueue.isEmpty())) {
+        // This will need to be split into a new window at some point but for now it will have to do
+        std::string msg = msgQueue.pop();
+        printw("LOM> %s\n", msg.c_str());
+        refresh();
+        count++;
     }
 }
 

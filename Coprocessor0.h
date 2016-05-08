@@ -244,8 +244,6 @@ class Coprocessor0 {
     
         // Tests for various operating modes
         bool inKernelMode();
-        inline bool inSupervisorMode();
-        inline bool inUserMode();
         bool interruptsEnabled();
     
         // Returns the value in a register for software

@@ -200,7 +200,7 @@ Coprocessor0::Coprocessor0() {
     
     // Configuration Register 1
     // M = 1 (Config2 implemented)
-    // FIXME: MMU.size - 1 = 000000 ?? (Number of entries on reset)
+    // MMU.size - 1 = 111111 (63)
     // IS (I-Cache sets per way) = 000 (64) FIXME: Don't care?
     // IL (I-Cache line size) = 000 (No I-Cache present) FIXME: Might need for proper OS support even if unused.
     // IA (I-Cache associativity) = 000 (Direct Mapped)
@@ -214,11 +214,10 @@ Coprocessor0::Coprocessor0() {
     // CA (MIPS16e Implemented) = 0 (No)
     // EP (EJTAG Implemented) = 0 (No)
     // FP (FPU Implemented) = 0 (No) TODO: Add FPU Support
-    // Old reset: 00111111000000000000000000000000 (64 TLB)
-    // reset: 10000000000000000000000000000000
+    // reset: 11111110000000000000000000000000
     // mask1: 11111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
-    registerFile[16][1] = new COP0Register(0x1, 0xFFFFFFFF, 0x0);
+    registerFile[16][1] = new COP0Register(0xFE000000, 0xFFFFFFFF, 0x0);
     
     // Configuration Register 2
     // M = 1 (Config3 implemented)
@@ -409,18 +408,6 @@ bool Coprocessor0::inKernelMode() {
     return (((registerFile[12][0]->getValue() & STATUS_KSU) == 0x0)
             || ((registerFile[12][0]->getValue() & STATUS_EXL) > 0x0)
             || ((registerFile[12][0]->getValue() & STATUS_ERL) > 0x0));
-}
-
-inline bool Coprocessor0::inSupervisorMode() {
-    // FIXME: Not sure if I want this 'feature' or not..
-    return false;
-}
-
-// Tests whether the processor is in usermode
-inline bool Coprocessor0::inUserMode() {
-    return (((registerFile[12][0]->getValue() & STATUS_KSU) == 0x10)
-            && ((registerFile[12][0]->getValue() & STATUS_EXL) == 0x0)
-            && ((registerFile[12][0]->getValue() & STATUS_ERL) == 0x0));
 }
 
 // Tests whether interrupts are enabled
