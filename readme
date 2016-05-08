@@ -1,19 +1,22 @@
 CS390 MIPS32 Release 2 Emulator
 
-- Currently an interpreter for a big-endian mips32 release 2 processor that
-implements most arithmetic, memory, shifting, etc. instructions, with plans
-to add coprocessor0 support as well as floating point (coprocessor1).
+- An interpreter for a big endian MIPS32 Release 2 processor that
+implements most arithmetic, memory, shifting, etc. instructions, as well as
+coprocessor 0 support, most exception types, and interrupts. Future plans are
+for coprocessor 1 (floating point) support.
 
 Compiling Instructions:
 	Run 'make' to build mips.x which can then be used to load
-		mips32r2 big-endian elf binaries. E.x. ./mips.x mmon.elf
+		mips32r2 big endian elf binaries. E.x. ./mips.x mmon.elf
 	Run 'make test' to build mips_tests.x which executes various
 		instruction unit tests.
 
 - Overview of files:
-	main.cpp - Handles machine startup/shutdown, elf file loading.
+	main.cpp - Handles machine startup/shutdown.
 	ConsoleUI.cpp/h - Handles stdin/stdout and acts as a bridge
 		between the terminal and emulated UART8250.
+	FileLoader.cpp/h - Parses argc/argv and executes file related
+		functions such as ELF and binary file loading.
 	CPU.cpp/h - Contains the interpreter core loop as well as most
 		instruction implementations.
 	PMMU.cpp/h - Contains the memory management unit emulation class
@@ -23,6 +26,8 @@ Compiling Instructions:
 	COP0Register.cpp/h - Implements coprocessor0 specific register
 		behavior including per bit software/hardware read/write 
 		locking.
+	MIPSException.cpp/h - Contains the implementations for all MIPS
+		exception types.
 	MMIO_Device.h - Abstract interface for memory-mapped IO devices
 		in order to attach to the MMU.
 	SharedQueue.h - Template locking std::queue, primarily for use in
@@ -30,6 +35,9 @@ Compiling Instructions:
 	UART8250.cpp/h - Partial (no interrupts) implementation of a
 		UART8250 serial port using memory-mapped IO.
 		See: ./mips.x mmon.elf for a working example
+	SharedDefs.h - Contains miscellaneous definitions that need to be
+		used by multiple components. (E.x. TLB size).
+
 	STest:
 		testmain.cpp - Adds tests to STest interface and starts
 			STest.
@@ -59,6 +67,16 @@ Compiling Instructions:
 			Table 3.9 (pg 38) MIPS32R2 Volume II.
 		ObsoleteBranchTests.cpp/h - Contains tests for instructions
 			from Table 3.10 (pg 38) MIPS32R2 Volume II.
+		PrivilegedInstructionTests.cpp/h - Contains tests for instructions
+			from Table 3.23 (pg 42) MIPS32R2 Volume II.
 	Misc:
 		Contains some miscellaneous things such as benchmark
 			results.
+
+		DispatchTests - Test code used for poster benchmarking.
+		MIPSTest - Code for basic exception handling, timer interrupt
+			and context switch testing. (See ./mips.x timer_test.elf)
+
+	elfio:
+		Unmodified elfio library (C) Serge Lamikhov-Center. Used for
+		loading ELF file formats.
