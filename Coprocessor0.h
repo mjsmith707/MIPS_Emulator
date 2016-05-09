@@ -23,6 +23,7 @@
 #define CO0_ENTRYLO0    2,0
 #define CO0_ENTRYLO1    3,0
 #define CO0_CONTEXT     4,0
+#define CO0_USERLOCAL   4,2
 #define CO0_PAGEMASK    5,0
 #define CO0_PAGEGRAIN   5,1
 #define CO0_WIRED       6,0
@@ -271,6 +272,9 @@ class Coprocessor0 {
     
         // Called by CPU to update Random Register
         void updateRandom();
+    
+        // Read Hardware Register
+        uint32_t readHWRegister(uint8_t rd);
 };
 
 #endif /* Coprocessor0_h */

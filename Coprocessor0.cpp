@@ -517,3 +517,51 @@ void Coprocessor0::updateRandom() {
     
     registerFile[1][0]->setValue(random, true);
 }
+
+// Read Hardware Register
+// This is the RDHWR Instruction
+uint32_t Coprocessor0::readHWRegister(uint8_t rd) {
+    bool kernelmode = inKernelMode();
+    uint32_t hwrena = getRegister(CO0_HWRENA);
+    
+    // Check if not in kernel mode or
+    // hwrena mask isn't set.
+    if ((!kernelmode) && ((hwrena & (0x1u << rd)) == 0)) {
+        throw ReservedInstructionException();
+    }
+    
+    uint32_t result = 0;
+    switch (rd) {
+        case 0: {
+            result = getRegister(CO0_EBASE) & EBASE_CPUNUM;
+            break;
+        }
+        case 1: {
+            // TODO: Caches not implemented
+            // Manual says 0 if no caches need to be
+            // synchronized. So zero it is.
+            result = 0;
+            break;
+        }
+        case 2: {
+            // Get Count Register
+            result = getRegister(CO0_COUNT);
+            break;
+        }
+        case 3: {
+            // CC Register increments every cpu cycle
+            result = 1;
+            break;
+        }
+        case 29: {
+            // TODO: UserLocal not implemented. Needs setting in Config3
+            // Get UserLocal Register
+            // result = getRegister(CO0_USERLOCAL);
+            // break;
+        }
+        default: {
+            throw ReservedInstructionException();
+        }
+    }
+    return result;
+}

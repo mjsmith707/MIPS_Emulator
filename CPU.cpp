@@ -14,7 +14,7 @@ const char* CPU::opcodeNames[64] {
 /* 0x00 */ "invalid", "invalid", "j", "jal", "beq", "bne", "blez", "bgtz", "addi", "addiu",
 /* 0x0A */ "slti", "sltiu", "andi", "ori", "xori", "lui",
 /* 0x10 */ "invalid", "cop1", "cop2", "invalid", "beql", "bnel", "blezl", "bgtzl", "invalid", "invalid",
-/* 0x1A */ "invalid", "invalid", "special2", "invalid", "invalid", "invalid",
+/* 0x1A */ "invalid", "invalid", "special2", "jalx", "invalid", "invalid",
 /* 0x20 */ "lb", "lh", "lwl", "lw", "lbu", "lhu", "lwr", "invalid", "sb", "sh",
 /* 0x2A */ "swl", "sw", "invalid", "invalid", "swr", "cache",
 /* 0x30 */ "ll", "lwc1", "lwc2", "pref", "invalid", "ldc1", "ldc2", "invalid", "sc", "swc1",
@@ -58,12 +58,12 @@ const char* CPU::regimmNames[32] {
 /* 0x00 */ "bltz", "bgez", "bltzl", "bgezl", "invalid", "invalid", "invalid", "invalid", "tgei", "tgeiu",
 /* 0x0A */ "tlti", "tltiu", "teqi", "invalid", "tnei", "invalid",
 /* 0x10 */ "bltzal", "bgezal", "bltzall", "bgezall", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
+/* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "synci"
 };
 
 const char* CPU::cop0Names[32] {
 /* 0x00 */ "mfc0", "invalid", "invalid", "invalid", "mtc0", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x0A */ "invalid", "di", "invalid", "invalid", "invalid", "invalid",
+/* 0x0A */ "rdpgpr", "di", "invalid", "invalid", "wrpgpr", "invalid",
 /* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "eret", "invalid",
 /* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "deret"
 };
@@ -73,7 +73,7 @@ const char* CPU::cop0CONames[64] {
 /* 0x0A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x10 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x1A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-/* 0x20 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
+/* 0x20 */ "wait", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x2A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x30 */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
 /* 0x3A */ "invalid", "invalid", "invalid", "invalid", "invalid", "invalid"
@@ -224,6 +224,11 @@ void CPU::clearInterrupt(MIPSInterrupt interrupt) {
 // Mainly for loading elf files into memory
 Coprocessor0* CPU::getControlCoprocessor() {
     return &cop0;
+}
+
+// Gets the CPU Number
+uint8_t CPU::getCPUNum() {
+    return this->CPUNUM;
 }
 
 // For unit testing interface
@@ -540,7 +545,7 @@ void CPU::dispatchLoop() {
         &&RESERVED_INSTRUCTION,          // 0x1A
         &&RESERVED_INSTRUCTION,          // 0x1B
         &&SPECIAL2, // 0x1C
-        &&RESERVED_INSTRUCTION,          // 0x1D
+        &&JALX,     // 0x1D
         &&RESERVED_INSTRUCTION,          // 0x1E
         &&SPECIAL3, // 0x1F
         &&LB,       // 0x20
@@ -775,7 +780,7 @@ void CPU::dispatchLoop() {
         &&RESERVED_INSTRUCTION,          // 0x38
         &&RESERVED_INSTRUCTION,          // 0x39
         &&RESERVED_INSTRUCTION,          // 0x3A
-        &&RESERVED_INSTRUCTION,          // 0x3B
+        &&RDHWR,    // 0x3B
         &&RESERVED_INSTRUCTION,          // 0x3C
         &&RESERVED_INSTRUCTION,          // 0x3D
         &&RESERVED_INSTRUCTION,          // 0x3E
@@ -814,7 +819,7 @@ void CPU::dispatchLoop() {
         &&RESERVED_INSTRUCTION,          // 0x1C
         &&RESERVED_INSTRUCTION,          // 0x1D
         &&RESERVED_INSTRUCTION,          // 0x1E
-        &&RESERVED_INSTRUCTION,          // 0x1F
+        &&SYNCI,    // 0x1F
     };
     
     static void* cop0Table[32] {
@@ -828,11 +833,11 @@ void CPU::dispatchLoop() {
         &&RESERVED_INSTRUCTION,          // 0x07
         &&RESERVED_INSTRUCTION,          // 0x08
         &&RESERVED_INSTRUCTION,          // 0x09
-        &&RESERVED_INSTRUCTION,          // 0x0A
-        &&MFMC0,       // 0x0B
+        &&RDPGPR,   // 0x0A
+        &&MFMC0,    // 0x0B
         &&RESERVED_INSTRUCTION,          // 0x0C
         &&RESERVED_INSTRUCTION,          // 0x0D
-        &&RESERVED_INSTRUCTION,          // 0x0E
+        &&WRPGPR,   // 0x0E
         &&RESERVED_INSTRUCTION,          // 0x0F
         &&RESERVED_INSTRUCTION,          // 0x10
         &&RESERVED_INSTRUCTION,          // 0x11
@@ -852,7 +857,7 @@ void CPU::dispatchLoop() {
         &&RESERVED_INSTRUCTION,          // 0x1F
     };
     
-    static void* cop0COTable[32] {
+    static void* cop0COTable[64] {
         &&RESERVED_INSTRUCTION,          // 0x00
         &&TLBR,     // 0x01
         &&TLBWI,    // 0x02
@@ -885,6 +890,38 @@ void CPU::dispatchLoop() {
         &&RESERVED_INSTRUCTION,          // 0x1D
         &&RESERVED_INSTRUCTION,          // 0x1E
         &&DERET,    // 0x1F
+        &&WAIT,     // 0x20
+        &&RESERVED_INSTRUCTION,          // 0x21
+        &&RESERVED_INSTRUCTION,          // 0x22
+        &&RESERVED_INSTRUCTION,          // 0x23
+        &&RESERVED_INSTRUCTION,          // 0x24
+        &&RESERVED_INSTRUCTION,          // 0x25
+        &&RESERVED_INSTRUCTION,          // 0x26
+        &&RESERVED_INSTRUCTION,          // 0x27
+        &&RESERVED_INSTRUCTION,          // 0x28
+        &&RESERVED_INSTRUCTION,          // 0x29
+        &&RESERVED_INSTRUCTION,          // 0x2A
+        &&RESERVED_INSTRUCTION,          // 0x2B
+        &&RESERVED_INSTRUCTION,          // 0x2C
+        &&RESERVED_INSTRUCTION,          // 0x2D
+        &&RESERVED_INSTRUCTION,          // 0x2E
+        &&RESERVED_INSTRUCTION,          // 0x2F
+        &&RESERVED_INSTRUCTION,          // 0x30
+        &&RESERVED_INSTRUCTION,          // 0x31
+        &&RESERVED_INSTRUCTION,          // 0x32
+        &&RESERVED_INSTRUCTION,          // 0x33
+        &&RESERVED_INSTRUCTION,          // 0x34
+        &&RESERVED_INSTRUCTION,          // 0x35
+        &&RESERVED_INSTRUCTION,          // 0x36
+        &&RESERVED_INSTRUCTION,          // 0x37
+        &&RESERVED_INSTRUCTION,          // 0x38
+        &&RESERVED_INSTRUCTION,          // 0x39
+        &&RESERVED_INSTRUCTION,          // 0x3A
+        &&RESERVED_INSTRUCTION,          // 0x3B
+        &&RESERVED_INSTRUCTION,          // 0x3C
+        &&RESERVED_INSTRUCTION,          // 0x3D
+        &&RESERVED_INSTRUCTION,          // 0x3E
+        &&RESERVED_INSTRUCTION,          // 0x3F
     };
     
     // Begin Dispatch Loop
@@ -1076,15 +1113,15 @@ dispatchStart:
     // 0x11 COP1
     COP1:
         // FIXME: I _think_ this is reserved, unusable only happens if the coprocessor exists
-        throw ReservedInstructionException();
+        goto RESERVED_INSTRUCTION;
     
     // 0x12 COP2
     COP2:
-        throw ReservedInstructionException();
+        goto RESERVED_INSTRUCTION;
         
     // 0x13
     COP1X:
-        throw ReservedInstructionException();
+        goto RESERVED_INSTRUCTION;
     
     // 0x14 Branch on Equal Likely
     BEQL:
@@ -1157,7 +1194,10 @@ dispatchStart:
         DECODE_FUNCT();
         goto *special2Table[funct];
     
-    // 0x1D
+    // 0x1D Jump and Link Exchange
+    JALX:
+        // TODO: microMIPS not implemented
+        goto RESERVED_INSTRUCTION;
     
     // 0x1E
     
@@ -2018,7 +2058,14 @@ dispatchStart:
             default:
                 goto RESERVED_INSTRUCTION;
         }
-    
+        
+    // 0x3B Read Hardware Register
+    RDHWR:
+        DECODE_RT();
+        DECODE_RD();
+        updateCount();
+        registers[rt] = cop0.readHWRegister(rd);
+        DISPATCH();
 /*
  * === END SPECIAL3 ===
  */
@@ -2182,6 +2229,11 @@ dispatchStart:
             PC += 4;    // Skip delay slot instruction
         }
         DISPATCH();
+        
+    // 0x1F Synchronize Caches to Make Instruction Writes Effective
+    SYNCI:
+        // TODO: Caches not implemented, treating as nop
+        DISPATCH();
 /*
  * === END REGIMM ===
  */
@@ -2208,6 +2260,11 @@ dispatchStart:
         updateCountCompare(); // Retrieve potential new count/compare
         DISPATCH();
     
+    // 0x0A Read GPR from Previous Shadow Set
+    RDPGPR:
+        // TODO: Shadow Registers not implemented
+        goto RESERVED_INSTRUCTION;
+        
     // 0x0B
     MFMC0:
         DECODE_SC();
@@ -2224,6 +2281,12 @@ dispatchStart:
             cop0.orRegisterHW(CO0_STATUS, STATUS_IE);
         }
         DISPATCH();
+        
+    // 0x0E Write to GPR in Previous Shadow Set
+    WRPGPR:
+        // TODO: Shadow Registers not implemented
+        goto RESERVED_INSTRUCTION;
+        
 /*
  * === END COP0 ===
  */
@@ -2281,6 +2344,10 @@ dispatchStart:
         goto RESERVED_INSTRUCTION;
         //DISPATCH();
         
+    // 0x20 Enter Standby Mode
+    WAIT:
+        goto RESERVED_INSTRUCTION;
+        
 /*
  * === END COP0 CO ===
  */
@@ -2294,44 +2361,44 @@ dispatchStart:
     HANDLE_SIGNAL:
         switch (signal) {
             case BREAKPTACTIVE: {
-                goto BREAKPTACTIVE;
+                goto SIGNAL_BREAKPTACTIVE;
             }
             case PAUSE: {
-                goto PAUSE;
+                goto SIGNAL_PAUSE;
             }
             case HALT: {
                 goto CPU_HALT;
             }
             case STEP: {
-                goto STEP;
+                goto SIGNAL_STEP;
             }
             case CONTINUE: {
             default:
-                goto CONTINUE;
+                goto SIGNAL_CONTINUE;
             }
         }
     
     // Handles single stepping
     // Basically continue once and pause
     // on next fetch.
-    STEP:
+    SIGNAL_STEP:
         signal = PAUSE;
-        goto CONTINUE;
+        goto SIGNAL_CONTINUE;
         
     // Handles breakpointing
     // Just polls the current PC
     // otherwise continues.
-    BREAKPTACTIVE:
+    SIGNAL_BREAKPTACTIVE:
         if (PC == breakpointTarget) {
             signal = PAUSE;
-            goto PAUSE;
+            goto SIGNAL_PAUSE;
         }
         else {
-            goto CONTINUE;
+            goto SIGNAL_CONTINUE;
         }
         
     // Waits for external thread signaling
-    PAUSE:
+    SIGNAL_PAUSE:
         // Wait for signal to change
         while (signal == PAUSE) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -2339,7 +2406,7 @@ dispatchStart:
         goto HANDLE_SIGNAL;
         
     // Resumes execution after handling a thread signal event
-    CONTINUE:
+    SIGNAL_CONTINUE:
         // Continue execution
         checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
         

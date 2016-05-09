@@ -101,5 +101,37 @@ void MIPS_MTLO() {
 }
 
 void MIPS_RDHWR() {
-    TEST_NOT_IMPLEMENTED();
+    // Read 0 Success
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(8, 0xDEADBEEF);
+    memory->storeWordPhys(0xA0000000, 0x7c08003b);  // rdhwr $t0,hwr_cpunum
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL((uint32_t)cpu0->getCPUNum(), cpu0->getRegister(8));    // CPUNUM should == 0
+    
+    // Read 1 Success
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(8, 0xDEADBEEF);
+    memory->storeWordPhys(0xA0000000, 0x7c08083b);  // rdhwr $t0,hwr_synci_step
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(0u, cpu0->getRegister(8));         // Synci Step Size should == 0
+    
+    // Read 2 Success
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(8, 0xDEADBEEF);
+    memory->storeWordPhys(0xA0000000, 0x7c08103b);  // rdhwr $t0,hwr_cc
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(1u, cpu0->getRegister(8));         // Count should == 1
+    
+    // Read 3 Success
+    reset();
+    cpu0->setPC(0xA0000000);
+    cpu0->setRegister(8, 0xDEADBEEF);
+    memory->storeWordPhys(0xA0000000, 0x7c08183b);  // rdhwr $t0,hwr_ccres
+    cpu0->stepCPU(1);
+    ASSERT_EQUAL(1u, cpu0->getRegister(8));         // Counter Resolution should == 1
+    
+    // TODO: Incomplete. Need tests for failure and hwrena mask
 }

@@ -261,6 +261,9 @@ class CPU {
         // Gets the coprocessor0 object bound to this cpu
         Coprocessor0* getControlCoprocessor();
     
+        // Gets the CPU Number
+        uint8_t getCPUNum();
+    
         // For unit testing interface
     #ifdef TEST_PROJECT
         void stepCPU(uint32_t);
