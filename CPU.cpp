@@ -389,7 +389,8 @@ std::string CPU::debugPrint() {
     << "=== END Decode ===" << std::endl;
     ss << std::dec << "=== Disassembly ===" << std::endl;
     if (branchDelay) {
-        ss << "-- Delay Slot --" << std::endl;
+        ss << "-- Delay Slot --" << std::endl
+        << "Branch Target: 0x" << std::hex << branchAddr << std::endl;
     }
     switch (opcode) {
         case 0x0: {
@@ -1308,6 +1309,7 @@ dispatchStart:
     // 0x2F Cache
     CACHE:
         //goto UNIMPLEMENTED_INSTRUCTION;
+        // TODO: Cache not implemented, treating as nop
         DISPATCH();
     
     // 0x30 Load Linked Word
@@ -1337,8 +1339,9 @@ dispatchStart:
     
     // 0x33 Prefetch
     PREF:
-        goto UNIMPLEMENTED_INSTRUCTION;
-        //DISPATCH();
+        //goto UNIMPLEMENTED_INSTRUCTION;
+        // TODO: Cache not implemented, treating as nop
+        DISPATCH();
     
     // 0x34
     
@@ -1537,6 +1540,7 @@ dispatchStart:
     // 0x0F Sync
     SYNC:
         //goto UNIMPLEMENTED_INSTRUCTION;
+        // TODO: Cache not implemented, treating as nop.
         DISPATCH();
     
     // 0x10 Move From HI Register

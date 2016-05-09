@@ -169,12 +169,15 @@ Coprocessor0::Coprocessor0() {
     registerFile[14][0] = new COP0Register(0x0, 0xFFFFFFFF, 0xFFFFFFFF);
     
     // Processor Identification Register
-    // FIXME: ?? No Opts, COMP_LEGACY, IMP_R3000, REV_R3000
-    // old reset: 11111111000000000000001000100000
-    // new reset: 00000000000000000000010000000000
+    // Company Opts = 00000000
+    // Company ID   = 00000001 (MIPS Technologies Inc.)
+    // Processor ID = 10000000 (4KC)
+    // Revision     = 00100010 (Rev 34k) FIXME: Is this right?
+    // reset: 00000000000000011000000000100010
+    // old reset: R4000 0x00000400
     // mask1: 11111111111111111111111111111111
     // mask2: 00000000000000000000000000000000
-    registerFile[15][0] = new COP0Register(0x00000400, 0xFFFFFFFF, 0x0);
+    registerFile[15][0] = new COP0Register(0x18022, 0xFFFFFFFF, 0x0);
     
     // EBase Register
     // No write-gate

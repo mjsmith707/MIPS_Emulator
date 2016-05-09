@@ -29,6 +29,11 @@ class UART8250 : public MMIO_Device {
         // This is it now
         #define UART_BASE 0x140003F8
     
+        // Also map to 0
+        #define UART_BASEPHYS 0x3F8
+    
+        const uint32_t addrOffset = 0x8;
+    
         // Receive Buffer
         Shared_Queue<char> receiveBuffer;
     

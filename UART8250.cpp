@@ -11,41 +11,10 @@
 // Default Constructor
 UART8250::UART8250() {
     // UART Addresses
-    // Base+0
-    // THR Transmitter Holding Buffer
-    // RBR Receiver Buffer
-    // DLL Divisor Latch Low Byte
     addresses.push_back(UART_BASE);
-    
-    // Base+1
-    // IER Interrupt Enable Register
-    // DLH Divisor Latch High Byte
-    //addresses.push_back(UART_BASE+1);
-    
-    // Base+2
-    // IIR Interrupt Identification Register
-    // FCR FIFO Control Register
-    //addresses.push_back(UART_BASE+2);
-    
-    // Base+3
-    // LCR Line Control Register
-    //addresses.push_back(UART_BASE+3);
-    
-    // Base+4
-    // MCR Modem Control Register
-    //addresses.push_back(UART_BASE+4);
-    
-    // Base+5
-    // LSR Line Status Register
-    //addresses.push_back(UART_BASE+5);
-    
-    // Base+6
-    // MSR Modem Status Register
-    //addresses.push_back(UART_BASE+6);
-    
-    // Base+7
-    // SR  Scratch Register
     addresses.push_back(UART_BASE+7);
+    addresses.push_back(UART_BASEPHYS);
+    addresses.push_back(UART_BASEPHYS+7);
 };
 
 // Device initializer
@@ -73,8 +42,10 @@ inline bool UART8250::DLABSet() {
 }
 
 uint8_t UART8250::readByte(uint32_t address) {
+    address &= 0xF;
+    address -= addrOffset;
     switch (address) {
-        case UART_BASE: {
+        case 0: {
             if (DLABSet()) {
                 return DLL;
             }
@@ -90,7 +61,7 @@ uint8_t UART8250::readByte(uint32_t address) {
                 return RBR;
             }
         }
-        case UART_BASE+1: {
+        case 1: {
             if (DLABSet()) {
                 return DLH;
             }
@@ -98,22 +69,22 @@ uint8_t UART8250::readByte(uint32_t address) {
                 return IER;
             }
         }
-        case UART_BASE+2: {
+        case 2: {
             return IIR;
         }
-        case UART_BASE+3: {
+        case 3: {
             return LCR;
         }
-        case UART_BASE+4: {
+        case 4: {
             return MCR;
         }
-        case UART_BASE+5: {
+        case 5: {
             return LSR;
         }
-        case UART_BASE+6: {
+        case 6: {
             return MSR;
         }
-        case UART_BASE+7: {
+        case 7: {
             return SR;
         }
         default: {
@@ -123,8 +94,10 @@ uint8_t UART8250::readByte(uint32_t address) {
 }
 
 void UART8250::storeByte(uint32_t address, uint8_t value) {
+    address &= 0xF;
+    address -= addrOffset;
     switch (address) {
-        case UART_BASE: {
+        case 0: {
             if (DLABSet()) {
                 DLL = value;
             }
@@ -135,7 +108,7 @@ void UART8250::storeByte(uint32_t address, uint8_t value) {
             }
             break;
         }
-        case UART_BASE+1: {
+        case 1: {
             if (DLABSet()) {
                 DLH = value;
             }
@@ -144,25 +117,25 @@ void UART8250::storeByte(uint32_t address, uint8_t value) {
             }
             break;
         }
-        case UART_BASE+2: {
+        case 2: {
             FCR = value;
             break;
         }
-        case UART_BASE+3: {
+        case 3: {
             LCR = value;
             break;
         }
-        case UART_BASE+4: {
+        case 4: {
             MCR = value;
             break;
         }
-        case UART_BASE+5: {
+        case 5: {
             break;
         }
-        case UART_BASE+6: {
+        case 6: {
             break;
         }
-        case UART_BASE+7: {
+        case 7: {
             SR = value;
             break;
         }
