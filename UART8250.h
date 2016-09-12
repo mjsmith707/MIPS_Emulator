@@ -13,12 +13,13 @@
 #include <vector>
 #include <iostream>
 #include <atomic>
+#include "Device.h"
 #include "MMIO_Device.h"
 #include "SharedQueue.h"
 
 // Also more or less a c&p job from C# version
 
-class UART8250 : public MMIO_Device {
+class UART8250 : public Device, public MMIO_Device {
     private:
         // List of port addresses
         std::vector<uint32_t> addresses;
@@ -59,6 +60,8 @@ class UART8250 : public MMIO_Device {
     
     public:
         UART8250();
+    
+        ~UART8250();
     
         // Called by MMU to initialize the device
         void initDevice();

@@ -17,6 +17,10 @@ UART8250::UART8250() {
     addresses.push_back(UART_BASEPHYS+7);
 };
 
+UART8250::~UART8250() {
+    
+}
+
 // Device initializer
 void UART8250::initDevice() {
     THR = 0x0;

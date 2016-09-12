@@ -15,9 +15,11 @@
 #include <climits>          // CHAR_BIT
 #include <thread>           // thread::sleep
 #include <sstream>          // For debug printing
+#include <chrono>           // For high_resolution_timer and others
 #include "ConsoleUI.h"      // stdout access
 #include "PMMU.h"           // Memory
 #include "Coprocessor0.h"   // Coprocessor0
+#include "Clockable_Device.h"   // Interface for clock driven devices
 #include <fstream>
 
 class MIPSException;        // Exception class forward reference
@@ -85,7 +87,7 @@ class CPU {
         #ifdef TEST_PROJECT
             #define DISPATCH() return;
         #else
-            #define DISPATCH() updateISARep() checkSignal() checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
+            #define DISPATCH() updateISARep() checkCycle() checkSignal() checkCountComp() checkClockable() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode]
         #endif
     
         // CPU Number
@@ -109,6 +111,7 @@ class CPU {
     
         // Cycle counter
         uint64_t cycleCounter;
+        uint64_t cycleLimit;
     
         // Shadow copies of count/compare
         uint32_t count;
@@ -145,6 +148,10 @@ class CPU {
         uint8_t co;
         uint8_t sc;
     
+        // Timing variables
+        std::chrono::time_point<std::chrono::high_resolution_clock> lastTime;
+        std::chrono::time_point<std::chrono::high_resolution_clock> currentTime;
+    
         // Temporary Variables for dispatchLoop
         // These need to be class members as Clang complains about
         // potentially uninitialized variables due to the heavy use
@@ -178,6 +185,17 @@ class CPU {
         static const char* cop0Names[32];
         static const char* cop0CONames[64];
         static const char* registerNames[32];
+    
+        // Clock driven device stuff
+        #define CLOCKDEV_MAX 32
+        uint32_t clockDevSize;
+        typedef struct ClockDev_t {
+            uint32_t interval;
+            Clockable_Device* dev;
+            ClockDev_t() : interval(0), dev(nullptr) {}
+            ClockDev_t(uint32_t interval, Clockable_Device* dev) : interval(interval), dev(dev) {}
+        } ClockDev_t;
+        ClockDev_t clockableDevices[CLOCKDEV_MAX];
     
         // CPU Execution Functions
         void decodeAll();
@@ -263,6 +281,9 @@ class CPU {
     
         // Gets the CPU Number
         uint8_t getCPUNum();
+    
+        // Attaches a clockable_device type to the CPU
+        void attachClockableDevice(Clockable_Device*);
     
         // For unit testing interface
     #ifdef TEST_PROJECT

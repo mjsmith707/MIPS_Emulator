@@ -9,7 +9,7 @@
 #include "ConsoleUI.h"
 #include "CPU.h"
 
-ConsoleUI::ConsoleUI(UART8250* uartptr) : uart(uartptr), breakpointActive(false), breakpointAddr(0) {
+ConsoleUI::ConsoleUI() : breakpointActive(false), breakpointAddr(0) {
     
 }
 
@@ -230,6 +230,14 @@ out:
     cbreak();
     timeout(0);
     return retval;
+}
+
+// Attaches UART to ConsoleUI
+void ConsoleUI::attachUART(UART8250* uart) {
+    if (uart == nullptr) {
+        throw std::runtime_error("Got null pointer in ConsoleUI::attachUART");
+    }
+    this->uart = uart;
 }
 
 // Attaches CPU to ConsoleUI

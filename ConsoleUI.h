@@ -49,7 +49,10 @@ class ConsoleUI {
     
     public:
         // CTOR
-        ConsoleUI(UART8250*);
+        ConsoleUI();
+    
+        // Attaches UART to ConsoleUI
+        void attachUART(UART8250*);
     
         // Attaches CPU to ConsoleUI
         void attachCPU(CPU*);

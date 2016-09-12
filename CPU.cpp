@@ -87,15 +87,17 @@ const char* CPU::registerNames[32] {
 // Parameterized Constructor
 // Attaches the CPU to other devices
 CPU::CPU(uint8_t cpuNum, ConsoleUI* conUI, PMMU* memory) : CPUNUM(cpuNum), consoleUI(conUI), memory(memory),
-    cycleCounter(0), count(0), compare(0), signal(CONTINUE), LLBit(false), exceptRestartLoop(false), singleStep(false) {
-    for (int i=0; i<32; i++) {
+    cycleCounter(0), cycleLimit(CLOCKSPEEDHZ), count(0), compare(0), signal(CONTINUE), LLBit(false), exceptRestartLoop(false), singleStep(false),
+    clockDevSize(0) {
+    for (size_t i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
 
 CPU::CPU(uint8_t cpuNum, PMMU* memory) : CPUNUM(cpuNum), consoleUI(nullptr), memory(memory),
-    cycleCounter(0), count(0), compare(0), signal(CONTINUE), LLBit(false), exceptRestartLoop(false), singleStep(false) {
-    for (int i=0; i<32; i++) {
+    cycleCounter(0), cycleLimit(CLOCKSPEEDHZ), count(0), compare(0), signal(CONTINUE), LLBit(false), exceptRestartLoop(false), singleStep(false),
+    clockDevSize(0) {
+    for (size_t i=0; i<32; i++) {
         registers[i] = 0;
     }
 }
@@ -229,6 +231,15 @@ Coprocessor0* CPU::getControlCoprocessor() {
 // Gets the CPU Number
 uint8_t CPU::getCPUNum() {
     return this->CPUNUM;
+}
+
+// Attaches a clockable_device type to the CPU
+void CPU::attachClockableDevice(Clockable_Device* dev) {
+    if (dev == nullptr) {
+        throw std::runtime_error("Got null device in attachClockableDevice");
+    }
+    ClockDev_t entry(dev->getCycleInterval(), dev);
+    clockableDevices[clockDevSize++] = entry;
 }
 
 // For unit testing interface
@@ -463,11 +474,26 @@ std::string CPU::printRegisters() {
     count++; \
     registers[0] = 0; \
 
+#define checkCycle() \
+    if (cycleCounter == cycleLimit) { \
+        goto HANDLE_CYCLE; \
+    } \
+
 // Checks if count == compare and then jumps into the handler for it
 // Turned out to be far far faster than calling cop0 every iteration
 #define checkCountComp() \
     if (count == compare) { \
         goto HANDLE_COUNT; \
+    } \
+
+// Decrements clockableDevices counters and executes at 0
+#define checkClockable() \
+    for (tempu32=0; tempu32<clockDevSize; tempu32++) { \
+        clockableDevices[tempu32].interval--; \
+        if ((clockableDevices[tempu32].interval == 0) && (clockableDevices[tempu32].dev->isEnabled())) { \
+            clockableDevices[tempu32].dev->onCycleExecute(); \
+            clockableDevices[tempu32].interval = clockableDevices[tempu32].dev->getCycleInterval(); \
+        } \
     } \
 
 // Fetches the next instruction into the program counter and instruction register
@@ -925,13 +951,14 @@ void CPU::dispatchLoop() {
     };
     
     // Begin Dispatch Loop
+    lastTime = std::chrono::high_resolution_clock::now();
     
 dispatchStart:
     try {
         exceptRestartLoop = false;
         
     #ifdef TEST_PROJECT
-        updateISARep() checkSignal() checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        updateISARep() checkCycle() checkSignal() checkCountComp() checkClockable() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
     #else
         DISPATCH();
     #endif
@@ -2355,6 +2382,23 @@ dispatchStart:
 /*
  * === Miscellaneous ===
  */
+    // Used to throttle CPU emulation to a fixed speed
+    HANDLE_CYCLE:
+        cycleLimit += CLOCKSPEEDHZ;
+        currentTime = std::chrono::high_resolution_clock::now();
+        if ((currentTime - lastTime) < std::chrono::seconds(1)) {
+            std::this_thread::sleep_for(currentTime - lastTime);
+        }
+        else {
+            std::string msg = "Overshot clock speed time! Lower your clockrate! Delta: ";
+            auto duration = currentTime - lastTime;
+            msg += std::to_string(std::chrono::duration<double, std::milli>(duration).count());
+            consoleUI->sendConsoleMsg(msg);
+        }
+        // Resume execution
+        lastTime = std::chrono::high_resolution_clock::now();
+        checkSignal() checkCountComp() checkClockable() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        
     // Handles thread signal reception
     // This will dispatch to specific
     // signal handlers
@@ -2408,7 +2452,7 @@ dispatchStart:
     // Resumes execution after handling a thread signal event
     SIGNAL_CONTINUE:
         // Continue execution
-        checkCountComp() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
+        checkCountComp() checkClockable() checkForInts() fetch() DECODE_OPCODE(); goto *opcodeTable[opcode];
         
     // Handles count/compare logic
     // This is only entered when count==compare

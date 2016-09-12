@@ -298,7 +298,7 @@ class PMMU {
         // Store will invalidate an atomic boolean (for LL/SC) if it is set
         inline static uint8_t* getFramePointer(uint32_t paddr, bool store) {
             // Get the frame pointer
-            paddr = (paddr&0xFFFFF000) >> 12;
+            paddr >>= 12;
             uint8_t* frame = frameTable[paddr];
             
             // Update frame's LLbit
@@ -558,7 +558,7 @@ class PMMU {
             uint8_t* frame = getFramePointer(vaddr, false);
             
             // Begin RWM sequence on this frame
-            frameBoolTable[(vaddr&0xFFFFF000) >> 12] = false;
+            frameBoolTable[vaddr >> 12] = false;
             
             vaddr &= 0x00000FFF;
             
@@ -710,7 +710,7 @@ class PMMU {
             
             // Get bool value
             // If dirty bit is set then fail
-            if (frameBoolTable[(vaddr&0xFFFFF000) >> 12]) {
+            if (frameBoolTable[vaddr >> 12]) {
                 return false;
             }
             // Otherwise modify and report success
